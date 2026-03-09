@@ -24,7 +24,7 @@ const Client = () => {
   const [manualNumber, setManualNumber] = useState('');
   const [queueData, setQueueData] = useState<QueueData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [doctors, setDoctors] = useState<{id: string; name: string; initial: string}[]>([]);
+  const [doctors, setDoctors] = useState<{ id: string; name: string; initial: string }[]>([]);
 
   useEffect(() => {
     supabase.from('doctors').select('*').then(({ data }) => {
@@ -125,7 +125,7 @@ const Client = () => {
   const stateLabels: Record<string, string> = { U: 'Urgence', N: 'Nouveau', R: 'Rendez-vous' };
 
   return (
-    <div className="min-h-[100dvh] bg-background flex flex-col">
+    <div className="h-[100dvh] overflow-hidden bg-background flex flex-col">
       <header className="p-3 sm:p-4 text-center border-b">
         <h1 className="text-xl sm:text-2xl font-bold text-primary">NEDJMA</h1>
         <p className="text-xs tracking-[0.3em] text-muted-foreground">SUIVI DE VOTRE POSITION</p>
