@@ -1,0 +1,1 @@
+INSERT INTO public.doctors (name, initial) VALUES ('Mohamed', 'M');
