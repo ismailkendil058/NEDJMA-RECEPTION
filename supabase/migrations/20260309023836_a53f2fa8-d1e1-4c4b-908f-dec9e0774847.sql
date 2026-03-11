@@ -136,9 +136,9 @@ create policy "Users can update own profile" on public.profiles for update to au
 
 -- Seed doctors
 insert into public.doctors (name, initial) values
-  ('Debica', 'D'),
-  ('Heman', 'H'),
-  ('Nouh', 'N'),
+  ('Nassim', 'N'),
+  ('Fatema', 'F'),
+  ('Nouh', 'L'),
   ('Mohamed', 'M');
 
 -- Enable realtime

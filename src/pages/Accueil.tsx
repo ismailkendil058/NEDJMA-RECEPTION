@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueue, QueueEntry } from '@/hooks/useQueue';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ const TREATMENTS = ['Consultation', 'Blanchiment', 'Extraction', 'Détartrage', 
 const Accueil = () => {
   const { user, signOut } = useAuth();
   const { entries, inCabinetEntries, activeSession, doctors, openSession, closeSession, addClient, callClient, completeClient, getStats, updateClient, deleteClient } = useQueue();
-  
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -24,6 +24,7 @@ const Accueil = () => {
   const [selectedEntry, setSelectedEntry] = useState<QueueEntry | null>(null);
   const [editEntry, setEditEntry] = useState<QueueEntry | null>(null);
   const [editPhone, setEditPhone] = useState('');
+  const [editPatientName, setEditPatientName] = useState('');
   const [editState, setEditState] = useState<'U' | 'N' | 'R'>('N');
   const [editDoctorId, setEditDoctorId] = useState('');
   const [doctorFilter, setDoctorFilter] = useState<string>('all');
@@ -41,6 +42,7 @@ const Accueil = () => {
 
   // Add client form
   const [newPhone, setNewPhone] = useState('');
+  const [newPatientName, setNewPatientName] = useState('');
   const [newState, setNewState] = useState<'U' | 'N' | 'R'>('N');
   const [newDoctorId, setNewDoctorId] = useState('');
 
@@ -52,7 +54,19 @@ const Accueil = () => {
 
   const [completedClients, setCompletedClients] = useState<any[]>([]);
 
-  const stats = getStats();
+  // Memoize statistics to avoid recalculating on every render
+  const stats = useMemo(() => getStats(), [entries, inCabinetEntries, getStats]);
+
+  // Memoize statistics by doctor
+  const doctorStats = useMemo(() => {
+    return doctors.map(doctor => {
+      const doctorEntries = entries.filter(e => e.doctor_id === doctor.id);
+      return {
+        ...doctor,
+        waitingCount: doctorEntries.length
+      };
+    });
+  }, [doctors, entries]);
 
   const handleOpenSession = async () => {
     if (!user) return;
@@ -71,7 +85,7 @@ const Accueil = () => {
       );
       return;
     }
-    
+
     const { error } = await closeSession();
     if (error) toast.error('Erreur lors de la fermeture de la séance');
     else toast.success('Séance fermée avec succès');
@@ -82,12 +96,19 @@ const Accueil = () => {
       toast.error('Veuillez remplir tous les champs');
       return;
     }
-    const { error } = await addClient(newPhone, newState, newDoctorId);
-    if (error) toast.error('Erreur lors de l\'ajout');
+    const { error } = await addClient(newPhone, newState, newDoctorId, newPatientName);
+    if (error) {
+      if ((error as any).code === '23505') {
+        toast.error('Ce numéro de téléphone est déjà dans la file d\'attente');
+      } else {
+        toast.error('Erreur lors de l\'ajout');
+      }
+    }
     else {
       toast.success('Client ajouté à la file');
       setShowAddModal(false);
       setNewPhone('');
+      setNewPatientName('');
       setNewState('N');
       setNewDoctorId('');
     }
@@ -106,7 +127,7 @@ const Accueil = () => {
   const handleCompleteClick = (entry: QueueEntry) => {
     // Open completion form for in-cabinet client
     setSelectedEntry(entry);
-    setClientName('');
+    setClientName(entry.patient_name || '');
     setTreatment('');
     setTotalAmount('');
     setTranchePaid('');
@@ -136,6 +157,7 @@ const Accueil = () => {
   const handleEdit = (entry: QueueEntry) => {
     setEditEntry(entry);
     setEditPhone(entry.phone);
+    setEditPatientName(entry.patient_name || '');
     setEditState(entry.state);
     setEditDoctorId(entry.doctor_id);
     setShowEditModal(true);
@@ -148,6 +170,7 @@ const Accueil = () => {
     }
     const { error } = await updateClient(editEntry.id, {
       phone: editPhone.trim(),
+      patient_name: editPatientName.trim(),
       state: editState,
       doctor_id: editDoctorId,
     });
@@ -175,10 +198,12 @@ const Accueil = () => {
     setShowCompleted(true);
   };
 
-  const filtered = entries.filter(e => {
-    const matchesDoctor = doctorFilter === 'all' || e.doctor_id === doctorFilter;
-    return matchesDoctor;
-  });
+  const filtered = useMemo(() => {
+    return entries.filter(e => {
+      const matchesDoctor = doctorFilter === 'all' || e.doctor_id === doctorFilter;
+      return matchesDoctor;
+    });
+  }, [entries, doctorFilter]);
 
   const stateColors = {
     U: 'bg-destructive text-destructive-foreground',
@@ -193,8 +218,8 @@ const Accueil = () => {
       <div className="min-h-[100dvh] bg-background flex flex-col">
         <header className="flex items-center justify-between p-3 sm:p-4 border-b">
           <div>
-            <h1 className="text-lg sm:text-xl font-bold text-primary">NEDJMA</h1>
-            <p className="text-xs text-muted-foreground">Accueil</p>
+            <h1 className="text-lg sm:text-xl font-bold text-primary italic">PasseVite</h1>
+            <p className="text-[10px] text-muted-foreground uppercase">le soin qui passe</p>
           </div>
           <Button variant="ghost" size="icon" onClick={signOut}><LogOut className="h-4 w-4" /></Button>
         </header>
@@ -223,8 +248,8 @@ const Accueil = () => {
       {/* Header */}
       <header className="flex items-center justify-between p-3 sm:p-4 border-b sticky top-0 bg-background z-10">
         <div className="min-w-0">
-          <h1 className="text-lg sm:text-xl font-bold text-primary">NEDJMA</h1>
-          <p className="text-xs text-muted-foreground truncate">Accueil · Séance active</p>
+          <h1 className="text-lg sm:text-xl font-bold text-primary italic">PasseVite</h1>
+          <p className="text-[10px] text-muted-foreground truncate uppercase">le soin qui passe</p>
         </div>
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={fetchCompleted} className="hidden sm:flex">
@@ -250,8 +275,8 @@ const Accueil = () => {
                 <AlertDialogDescription>
                   {entries.length > 0 || inCabinetEntries.length > 0 ? (
                     <span className="text-destructive">
-                      Impossible de fermer la séance : {entries.length + inCabinetEntries.length} client(s) en attente 
-                      ({entries.length} en file d'attente, {inCabinetEntries.length} au cabinet). 
+                      Impossible de fermer la séance : {entries.length + inCabinetEntries.length} client(s) en attente
+                      ({entries.length} en file d'attente, {inCabinetEntries.length} au cabinet).
                       Veuillez traiter ou supprimer tous les clients avant de fermer la séance.
                     </span>
                   ) : (
@@ -272,9 +297,9 @@ const Accueil = () => {
       {/* Stats by Doctor - carousel with navigation */}
       <div className="relative">
         <div className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden sm:flex">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="h-8 w-8 bg-background/80 shadow-md rounded-full"
             onClick={() => scrollDoctors('left')}
           >
@@ -282,31 +307,30 @@ const Accueil = () => {
           </Button>
         </div>
         <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden sm:flex">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="h-8 w-8 bg-background/80 shadow-md rounded-full"
             onClick={() => scrollDoctors('right')}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <div 
+        <div
           ref={doctorsScrollRef}
           className="flex gap-2 p-3 sm:p-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {doctors.map(doctor => {
-            const waiting = entries.filter(e => e.doctor_id === doctor.id);
+          {doctorStats.map(ds => {
             return (
-              <Card 
-                key={doctor.id} 
+              <Card
+                key={ds.id}
                 className="border-0 shadow-sm shrink-0 w-28 sm:w-40 snap-start cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => setDoctorFilter(doctorFilter === doctor.id ? 'all' : doctor.id)}
+                onClick={() => setDoctorFilter(doctorFilter === ds.id ? 'all' : ds.id)}
               >
                 <CardContent className="p-3 sm:p-4 text-center">
-                  <p className="text-xs font-medium text-muted-foreground mb-1 truncate">Dr. {doctor.name}</p>
-                  <p className="text-xl sm:text-2xl font-bold text-foreground">{waiting.length}</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1 truncate">Dr. {ds.name}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-foreground">{ds.waitingCount}</p>
                   <p className="text-xs text-muted-foreground">en attente</p>
                 </CardContent>
               </Card>
@@ -324,13 +348,14 @@ const Accueil = () => {
           </h2>
           <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide">
             {inCabinetEntries.map(entry => (
-              <Card 
+              <Card
                 key={entry.id}
                 className="border-orange-200 bg-orange-50 shrink-0 w-40 sm:w-48 cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => handleCompleteClick(entry)}
               >
                 <CardContent className="p-3 text-center">
                   <p className="font-bold text-lg text-orange-700">{entry.client_id}</p>
+                  <p className="text-xs font-medium text-orange-800 truncate">{entry.patient_name || '—'}</p>
                   <p className="text-xs text-orange-600 truncate">Dr. {entry.doctor?.name || '—'}</p>
                   <p className="text-xs text-orange-500 mt-1">Cliquer pour finaliser</p>
                 </CardContent>
@@ -358,6 +383,11 @@ const Accueil = () => {
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-semibold text-sm sm:text-base text-foreground">{entry.client_id}</span>
+                      {entry.patient_name && (
+                        <span className="text-sm font-medium text-muted-foreground truncate max-w-[120px] sm:max-w-[200px]">
+                          · {entry.patient_name}
+                        </span>
+                      )}
                       <Badge variant="outline" className={`${stateColors[entry.state]} text-xs px-1.5 py-0`}>
                         {stateLabels[entry.state]}
                       </Badge>
@@ -373,7 +403,7 @@ const Accueil = () => {
                       <Phone className="h-5 w-5" />
                     </a>
                     <a
-                      href={`sms:${entry.phone}?body=${encodeURIComponent("Bonjour,\n\nIci la Clinique Nedjma. Nous vous informons que votre tour est prévu dans environ 30 minutes.\nNous vous remercions de bien vouloir vous présenter à l'accueil à temps.\n\nMerci pour votre compréhension et à tout à l'heure.\nClinique Nedjma")}`}
+                      href={`sms:${entry.phone}?body=${encodeURIComponent("Bonjour,\n\nIci PasseVite. Nous vous informons que votre tour est prévu dans environ 30 minutes.\nNous vous remercions de bien vouloir vous présenter à l'accueil à temps.\n\nMerci pour votre compréhension et à tout à l'heure.\nPasseVite")}`}
                       className="text-primary flex items-center justify-center p-1.5 hover:bg-secondary/50 rounded-full transition-colors"
                       title="Envoyer un SMS"
                     >
@@ -445,6 +475,12 @@ const Accueil = () => {
             <DialogTitle>Ajouter un client</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 sm:space-y-4">
+            <Input
+              placeholder="Nom du patient"
+              value={newPatientName}
+              onChange={(e) => setNewPatientName(e.target.value)}
+              className="h-11 sm:h-12"
+            />
             <Input
               placeholder="Numéro de téléphone"
               value={newPhone}
@@ -556,6 +592,12 @@ const Accueil = () => {
             <DialogTitle>Modifier le client · {editEntry?.client_id}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 sm:space-y-4">
+            <Input
+              placeholder="Nom du patient"
+              value={editPatientName}
+              onChange={(e) => setEditPatientName(e.target.value)}
+              className="h-11 sm:h-12"
+            />
             <Input
               placeholder="Numéro de téléphone"
               value={editPhone}

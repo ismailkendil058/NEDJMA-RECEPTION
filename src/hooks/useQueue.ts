@@ -6,6 +6,7 @@ export interface QueueEntry {
   id: string;
   session_id: string;
   phone: string;
+  patient_name?: string;
   state: 'U' | 'N' | 'R';
   doctor_id: string;
   state_number: number;
@@ -90,27 +91,44 @@ export function useQueue() {
 
   useEffect(() => {
     const init = async () => {
-      await fetchDoctors();
-      const session = await fetchActiveSession();
+      setLoading(true);
+      // Batch initial fetches for faster load
+      const [docRes, session] = await Promise.all([
+        supabase.from('doctors').select('*'),
+        fetchActiveSession()
+      ]);
+
+      if (docRes.data) setDoctors(docRes.data);
+
       if (session) {
-        await fetchEntries(session.id);
-        await fetchInCabinetEntries(session.id);
+        await Promise.all([
+          fetchEntries(session.id),
+          fetchInCabinetEntries(session.id)
+        ]);
       }
       setLoading(false);
     };
     init();
-  }, [fetchDoctors, fetchActiveSession, fetchEntries, fetchInCabinetEntries]);
+  }, [fetchActiveSession, fetchEntries, fetchInCabinetEntries]);
 
-  // Real-time subscription
+  // Combined Real-time subscription for queue entries
   useEffect(() => {
     if (!activeSession) return;
 
     const channel = supabase
-      .channel('queue-changes')
+      .channel(`queue-${activeSession.id}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'queue_entries', filter: `session_id=eq.${activeSession.id}` },
-        (_payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+        {
+          event: '*',
+          schema: 'public',
+          table: 'queue_entries',
+          filter: `session_id=eq.${activeSession.id}`
+        },
+        () => {
+          // Optimized: We still refetch but we could also use the payload to be even faster.
+          // However, due to joined data (doctor) and complex sorting, a targeted refetch
+          // is safer and still much faster than a full page refresh.
           fetchEntries(activeSession.id);
           fetchInCabinetEntries(activeSession.id);
         }
@@ -118,16 +136,20 @@ export function useQueue() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [activeSession, fetchEntries, fetchInCabinetEntries]);
+  }, [activeSession?.id, fetchEntries, fetchInCabinetEntries]);
 
   // Session real-time
   useEffect(() => {
     const channel = supabase
-      .channel('session-changes')
+      .channel('session-monitor')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'sessions' },
-        () => { fetchActiveSession(); }
+        (payload) => {
+          if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+            fetchActiveSession();
+          }
+        }
       )
       .subscribe();
 
@@ -172,7 +194,7 @@ export function useQueue() {
     return { error };
   };
 
-  const addClient = async (phone: string, state: 'U' | 'N' | 'R', doctorId: string) => {
+  const addClient = async (phone: string, state: 'U' | 'N' | 'R', doctorId: string, patientName?: string) => {
     if (!activeSession) return { error: new Error('Aucune séance active') };
 
     const doctor = doctors.find(d => d.id === doctorId);
@@ -196,6 +218,7 @@ export function useQueue() {
       .insert({
         session_id: activeSession.id,
         phone: phone.trim(),
+        patient_name: patientName?.trim(),
         state,
         doctor_id: doctorId,
         state_number: nextNumber,
@@ -237,10 +260,10 @@ export function useQueue() {
 
     if (insertError) return { error: insertError };
 
-    // Mark as completed
+    // Delete from queue_entries
     const { error } = await supabase
       .from('queue_entries')
-      .update({ status: 'completed' })
+      .delete()
       .eq('id', entryId);
 
     return { error };
@@ -249,7 +272,7 @@ export function useQueue() {
   const getStats = () => {
     const stats = { U: { current: 0, total: 0 }, N: { current: 0, total: 0 }, R: { current: 0, total: 0 } };
     const waiting = entries.filter(e => e.status === 'waiting');
-    
+
     (['U', 'N', 'R'] as const).forEach(state => {
       const stateEntries = waiting.filter(e => e.state === state);
       stats[state].current = stateEntries.length > 0 ? stateEntries[0].state_number : 0;
@@ -259,7 +282,7 @@ export function useQueue() {
     return stats;
   };
 
-  const updateClient = async (entryId: string, updates: { phone?: string; state?: 'U' | 'N' | 'R'; doctor_id?: string }) => {
+  const updateClient = async (entryId: string, updates: { phone?: string; state?: 'U' | 'N' | 'R'; doctor_id?: string; patient_name?: string }) => {
     const { error } = await supabase
       .from('queue_entries')
       .update(updates)

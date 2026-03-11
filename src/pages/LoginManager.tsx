@@ -47,8 +47,8 @@ const LoginManager = () => {
       <Card className="w-full max-w-md shadow-lg border-0">
         <CardHeader className="text-center space-y-4 pb-2">
           <div className="mx-auto">
-            <h1 className="text-3xl font-bold tracking-tight text-primary">NEDJMA</h1>
-            <p className="text-xs tracking-[0.3em] text-muted-foreground mt-1">CLINIQUE DENTAIRE</p>
+            <h1 className="text-3xl font-bold tracking-tight text-primary italic">PasseVite</h1>
+            <p className="text-xs tracking-[0.3em] text-muted-foreground mt-1 uppercase">le soin qui passe</p>
           </div>
           <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mx-auto">
             <UserCog className="h-6 w-6 text-primary" />
@@ -81,6 +81,11 @@ const LoginManager = () => {
             <Button type="submit" className="w-full h-12 text-base font-medium" disabled={loading}>
               {loading ? 'Connexion...' : 'Se connecter'}
             </Button>
+            <div className="mt-6 p-4 rounded-xl bg-secondary/50 border border-primary/10 text-center">
+              <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Compte Démo</p>
+              <p className="text-xs text-muted-foreground">Utilisateur: <span className="text-foreground font-medium">admin</span></p>
+              <p className="text-xs text-muted-foreground">Mot de passe: <span className="text-foreground font-medium">admin123</span></p>
+            </div>
           </form>
         </CardContent>
       </Card>

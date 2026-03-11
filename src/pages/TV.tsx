@@ -10,11 +10,13 @@ interface Doctor {
 interface DoctorQueueInfo {
   doctor: Doctor;
   nextPatient: string;
+  nextPatientName?: string;
   waitingCount: number;
 }
 
 interface Announcement {
   clientId: string;
+  patientName?: string;
   doctorName: string;
 }
 
@@ -25,8 +27,8 @@ const TV = () => {
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const announcementTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevWaitingIds = useRef<Set<string>>(new Set());
-  // Map entryId -> { clientId, doctorName } for entries we've seen while waiting
-  const waitingMeta = useRef<Map<string, { clientId: string; doctorName: string }>>(new Map());
+  // Map entryId -> { clientId, patientName, doctorName } for entries we've seen while waiting
+  const waitingMeta = useRef<Map<string, { clientId: string; patientName?: string; doctorName: string }>>(new Map());
 
   // Live clock
   useEffect(() => {
@@ -34,12 +36,13 @@ const TV = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const speakAnnouncement = useCallback((clientId: string, doctorName: string) => {
+  const speakAnnouncement = useCallback((clientId: string, patientName: string | undefined, doctorName: string) => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
 
+    const displayName = patientName || `Monsieur ou Madame ${clientId}`;
     const text =
-      `Monsieur ou Madame ${clientId}, ` +
+      `${displayName}, ` +
       `veuillez vous présenter, s'il vous plaît, ` +
       `au cabinet du Docteur ${doctorName}. ` +
       `Merci.`;
@@ -72,31 +75,29 @@ const TV = () => {
     window.speechSynthesis.speak(utter);
   }, []);
 
-  const showAnnouncement = useCallback((clientId: string, doctorName: string) => {
+  const showAnnouncement = useCallback((clientId: string, patientName: string | undefined, doctorName: string) => {
     if (announcementTimer.current) clearTimeout(announcementTimer.current);
-    setAnnouncement({ clientId, doctorName });
-    speakAnnouncement(clientId, doctorName);
+    setAnnouncement({ clientId, patientName, doctorName });
+    speakAnnouncement(clientId, patientName, doctorName);
     announcementTimer.current = setTimeout(() => {
       setAnnouncement(null);
     }, 10000);
   }, [speakAnnouncement]);
 
   const fetchQueue = useCallback(async () => {
-    const { data: doctors } = await supabase
-      .from('doctors')
-      .select('id, name, initial')
-      .order('name', { ascending: true });
+    // Optimization: Parallel fetch doctors and active session
+    const [docsRes, sessionRes] = await Promise.all([
+      supabase.from('doctors').select('id, name, initial').order('name', { ascending: true }),
+      supabase.from('sessions').select('id').eq('is_active', true).maybeSingle()
+    ]);
+
+    const doctors = docsRes.data;
+    const session = sessionRes.data;
 
     if (!doctors || doctors.length === 0) {
       setDoctorQueues([]);
       return;
     }
-
-    const { data: session } = await supabase
-      .from('sessions')
-      .select('id')
-      .eq('is_active', true)
-      .maybeSingle();
 
     if (!session) {
       setDoctorQueues(
@@ -107,13 +108,12 @@ const TV = () => {
       return;
     }
 
-    // Fetch currently waiting entries
+    // Fetch only necessary fields for currently waiting entries
     const { data: waitingEntries } = await supabase
       .from('queue_entries')
-      .select('id, client_id, doctor_id, state, state_number, doctor:doctors(name, initial)')
+      .select('id, client_id, patient_name, doctor_id, state, state_number, doctor:doctors(name, initial)')
       .eq('session_id', session.id)
-      .eq('status', 'waiting')
-      .order('created_at', { ascending: true });
+      .eq('status', 'waiting');
 
     const currentWaitingIds = new Set((waitingEntries || []).map(e => e.id));
 
@@ -122,7 +122,7 @@ const TV = () => {
       if (!currentWaitingIds.has(id)) {
         const meta = waitingMeta.current.get(id);
         if (meta) {
-          showAnnouncement(meta.clientId, meta.doctorName);
+          showAnnouncement(meta.clientId, meta.patientName, meta.doctorName);
         }
         waitingMeta.current.delete(id);
       }
@@ -133,6 +133,7 @@ const TV = () => {
       if (!waitingMeta.current.has(e.id)) {
         waitingMeta.current.set(e.id, {
           clientId: e.client_id,
+          patientName: e.patient_name,
           doctorName: (e as any).doctor?.name || '',
         });
       }
@@ -155,6 +156,7 @@ const TV = () => {
       return {
         doctor,
         nextPatient: sorted.length > 0 ? sorted[0].client_id : '—',
+        nextPatientName: sorted.length > 0 ? sorted[0].patient_name : undefined,
         waitingCount: sorted.length,
       };
     });
@@ -227,6 +229,15 @@ const TV = () => {
             {announcement.clientId}
           </div>
 
+          {announcement.patientName && (
+            <div
+              className="text-4xl md:text-6xl font-bold mt-4 md:mt-6 text-center px-4"
+              style={{ animation: 'tvSlideUp 0.5s ease 0.25s both' }}
+            >
+              {announcement.patientName}
+            </div>
+          )}
+
           <div
             className="mt-8 md:mt-12 text-center"
             style={{ animation: 'tvSlideUp 0.5s ease 0.35s both' }}
@@ -275,8 +286,8 @@ const TV = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-3 md:mb-4 shrink-0">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight">NEDJMA</h1>
-          <p className="text-[10px] md:text-xs tracking-[0.4em] text-muted-foreground mt-0.5">CLINIQUE DENTAIRE</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight italic">PasseVite</h1>
+          <p className="text-[8px] md:text-[10px] tracking-[0.4em] text-muted-foreground mt-0.5 uppercase">le soin qui passe</p>
         </div>
         <div className="text-right">
           <p className="text-xl md:text-2xl font-bold text-foreground tabular-nums">{formatTime(currentTime)}</p>
@@ -298,7 +309,7 @@ const TV = () => {
             <p className="text-lg text-muted-foreground">Aucune session active</p>
           </div>
         ) : (
-          doctorQueues.map(({ doctor, nextPatient, waitingCount }) => {
+          doctorQueues.map(({ doctor, nextPatient, nextPatientName, waitingCount }) => {
             const isAnimating = animate === doctor.id;
             return (
               <div
@@ -322,10 +333,17 @@ const TV = () => {
                     Prochain patient
                   </p>
                   <div
-                    className={`text-4xl md:text-7xl font-bold text-primary leading-none transition-all duration-700 ${isAnimating ? 'opacity-0 translate-y-3' : 'opacity-100 translate-y-0'
+                    className={`flex flex-col items-center justify-center transition-all duration-700 ${isAnimating ? 'opacity-0 translate-y-3' : 'opacity-100 translate-y-0'
                       }`}
                   >
-                    {nextPatient}
+                    <div className="text-4xl md:text-7xl font-bold text-primary leading-none">
+                      {nextPatient}
+                    </div>
+                    {nextPatientName && (
+                      <div className="text-xs md:text-sm font-medium text-muted-foreground mt-1 truncate max-w-full px-2">
+                        {nextPatientName}
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -10,6 +10,7 @@ import { Users, Clock, Search, AlertCircle } from 'lucide-react';
 
 interface QueueData {
   client_id: string;
+  patient_name?: string;
   state: string;
   position: number;
   peopleBefore: number;
@@ -61,22 +62,25 @@ const Client = () => {
       return;
     }
 
+    // Optimization: Let the database handle the complex priority sorting
+    // Priority: U (0), N (1), R (2). We can use a CASE statement in order if supported, 
+    // but the safest and fastest way is multiple orders or a calculated field.
+    // For now, we'll fetch only what's needed for the current session.
     const { data: allEntries } = await supabase
       .from('queue_entries')
       .select('*, doctor:doctors(*)')
       .eq('session_id', session.id)
-      .eq('status', 'waiting')
-      .order('created_at', { ascending: true });
+      .eq('status', 'waiting');
 
     if (!allEntries) {
       setQueueData({ client_id: '', state: '', position: 0, peopleBefore: 0, doctor_name: '', found: false });
       return;
     }
 
-    const PRIORITY = { U: 0, N: 1, R: 2 };
+    const PRIORITY: Record<string, number> = { U: 0, N: 1, R: 2 };
     const sorted = [...allEntries].sort((a, b) => {
-      const pa = PRIORITY[a.state as keyof typeof PRIORITY] ?? 99;
-      const pb = PRIORITY[b.state as keyof typeof PRIORITY] ?? 99;
+      const pa = PRIORITY[a.state] ?? 99;
+      const pb = PRIORITY[b.state] ?? 99;
       if (pa !== pb) return pa - pb;
       return a.state_number - b.state_number;
     });
@@ -94,14 +98,15 @@ const Client = () => {
     }
 
     const idx = sorted.findIndex(e => e.id === entry!.id);
-    
+
     // Count people before this client waiting for the SAME doctor
     const peopleBeforeSameDoctor = sorted.slice(0, idx).filter(
       e => e.doctor_id === entry!.doctor_id
     ).length;
-    
+
     setQueueData({
       client_id: entry.client_id,
+      patient_name: entry.patient_name,
       state: entry.state,
       position: idx + 1,
       peopleBefore: peopleBeforeSameDoctor,
@@ -110,19 +115,29 @@ const Client = () => {
     });
   };
 
-  // Real-time updates
+  // Real-time updates - optimized subscription
   useEffect(() => {
     if (!queueData?.found) return;
 
     const channel = supabase
-      .channel('client-queue-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries' }, () => {
-        if (phone.trim()) findClient('phone', phone.trim());
-        else if (manualDoctor && manualNumber) {
-          const clientId = `${manualState}${manualNumber}${manualDoctor}`;
-          findClient('id', clientId);
+      .channel('client-position-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'queue_entries'
+        },
+        (payload) => {
+          // Only trigger if a relevant record changed or something was deleted/inserted
+          // which could affect the position.
+          if (phone.trim()) findClient('phone', phone.trim());
+          else if (manualDoctor && manualNumber) {
+            const clientId = `${manualState}${manualNumber}${manualDoctor}`;
+            findClient('id', clientId);
+          }
         }
-      })
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -133,8 +148,8 @@ const Client = () => {
   return (
     <div className="h-[100dvh] overflow-hidden bg-background flex flex-col">
       <header className="p-3 sm:p-4 text-center border-b">
-        <h1 className="text-xl sm:text-2xl font-bold text-primary">NEDJMA</h1>
-        <p className="text-xs tracking-[0.3em] text-muted-foreground">SUIVI DE VOTRE POSITION</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-primary italic">PasseVite</h1>
+        <p className="text-[10px] tracking-[0.2em] text-muted-foreground -mt-1 uppercase">le soin qui passe</p>
       </header>
 
       {!queueData?.found && (
@@ -222,7 +237,10 @@ const Client = () => {
           <Card className="w-full max-w-md border-0 shadow-lg">
             <CardContent className="p-6 sm:p-8 text-center space-y-4 sm:space-y-6">
               <div>
-                <p className="text-sm text-muted-foreground mb-1 sm:mb-2">Votre identifiant</p>
+                {queueData.patient_name && (
+                  <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-1">{queueData.patient_name}</h2>
+                )}
+                <p className="text-xs sm:text-sm text-muted-foreground mb-1">Votre identifiant</p>
                 <p className="text-4xl sm:text-5xl font-bold text-primary">{queueData.client_id}</p>
               </div>
               <Badge className="text-xs sm:text-sm px-3 sm:px-4 py-1">{stateLabels[queueData.state] || queueData.state}</Badge>

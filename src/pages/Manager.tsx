@@ -56,9 +56,9 @@ const Manager = () => {
         .from('profiles')
         .select('id, email')
         .in('id', uniqueIds);
-      
+
       const emailMap = new Map(profiles?.map(p => [p.id, p.email]) || []);
-      
+
       setClients(data.map(c => ({
         ...c,
         doctor: c.doctor as any,
@@ -83,7 +83,7 @@ const Manager = () => {
 
   const filtered = useMemo(() => {
     return clients.filter(c => {
-      const matchesSearch = !searchQuery || 
+      const matchesSearch = !searchQuery ||
         c.client_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.phone.includes(searchQuery) ||
         c.client_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -125,13 +125,13 @@ const Manager = () => {
       c.receptionist_email || '',
       format(new Date(c.completed_at), 'dd/MM/yyyy HH:mm'),
     ]);
-    
+
     const csvContent = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `nedjma-rapport-${dateFrom}-${dateTo}.csv`;
+    a.download = `passevite-rapport-${dateFrom}-${dateTo}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -140,8 +140,8 @@ const Manager = () => {
     <div className="min-h-[100dvh] bg-background flex flex-col">
       <header className="flex items-center justify-between p-3 sm:p-4 border-b sticky top-0 bg-background z-10">
         <div>
-          <h1 className="text-lg sm:text-xl font-bold text-primary">NEDJMA</h1>
-          <p className="text-xs text-muted-foreground">Tableau de bord Manager</p>
+          <h1 className="text-lg sm:text-xl font-bold text-primary italic">PasseVite</h1>
+          <p className="text-[10px] text-muted-foreground uppercase">le soin qui passe</p>
         </div>
         <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8"><LogOut className="h-4 w-4" /></Button>
       </header>
