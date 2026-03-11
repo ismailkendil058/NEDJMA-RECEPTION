@@ -403,7 +403,7 @@ const Accueil = () => {
                       <Phone className="h-5 w-5" />
                     </a>
                     <a
-                      href={`sms:${entry.phone}?body=${encodeURIComponent("Bonjour,\n\nIci PasseVite. Nous vous informons que votre tour est prévu dans environ 30 minutes.\nNous vous remercions de bien vouloir vous présenter à l'accueil à temps.\n\nMerci pour votre compréhension et à tout à l'heure.\nPasseVite")}`}
+                      href={`sms:${entry.phone}?body=${encodeURIComponent(". Cabinet PasseVite : votre tour arrive bientôt.\nVous pouvez suivre le nombre de patients avant vous ici :\nhttps://passevite.vercel.app/client\nدوركم سيأتي قريبًا.")}`}
                       className="text-primary flex items-center justify-center p-1.5 hover:bg-secondary/50 rounded-full transition-colors"
                       title="Envoyer un SMS"
                     >
