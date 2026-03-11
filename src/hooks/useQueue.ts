@@ -29,8 +29,6 @@ export interface ActiveSession {
   is_active: boolean;
 }
 
-const PRIORITY_ORDER = { U: 0, N: 1, R: 2 };
-
 export function useQueue() {
   const [entries, setEntries] = useState<QueueEntry[]>([]);
   const [inCabinetEntries, setInCabinetEntries] = useState<QueueEntry[]>([]);
@@ -82,10 +80,26 @@ export function useQueue() {
 
   const sortByPriority = (items: QueueEntry[]) => {
     return [...items].sort((a, b) => {
-      const pa = PRIORITY_ORDER[a.state as keyof typeof PRIORITY_ORDER] ?? 99;
-      const pb = PRIORITY_ORDER[b.state as keyof typeof PRIORITY_ORDER] ?? 99;
-      if (pa !== pb) return pa - pb;
-      return a.state_number - b.state_number;
+      // 1. U (Urgent) always has absolute priority
+      if (a.state === 'U' && b.state !== 'U') return -1;
+      if (a.state !== 'U' && b.state === 'U') return 1;
+      if (a.state === 'U' && b.state === 'U') return a.state_number - b.state_number;
+
+      // 2. For N (New) and R (Appointment), alternate: N1, R1, N2, R2, ...
+      const getRank = (e: QueueEntry) => {
+        const num = e.state_number || 0;
+        if (e.state === 'N') return num * 2 - 1; // N1->1, N2->3, N3->5
+        if (e.state === 'R') return num * 2;     // R1->2, R2->4, R3->6
+        return 999;
+      };
+
+      const rankA = getRank(a);
+      const rankB = getRank(b);
+
+      if (rankA !== rankB) return rankA - rankB;
+
+      // Secondary sort for items with same rank (different doctors) or unknown states
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     });
   };
 
@@ -123,14 +137,17 @@ export function useQueue() {
           event: '*',
           schema: 'public',
           table: 'queue_entries',
-          filter: `session_id=eq.${activeSession.id}`
+          // Removed session_id filter because DELETE events don't include it in the payload
+          // unless Replica Identity is set to FULL, which prevents real-time from firing.
         },
-        () => {
-          // Optimized: We still refetch but we could also use the payload to be even faster.
-          // However, due to joined data (doctor) and complex sorting, a targeted refetch
-          // is safer and still much faster than a full page refresh.
-          fetchEntries(activeSession.id);
-          fetchInCabinetEntries(activeSession.id);
+        (payload) => {
+          // Re-verify if the change belongs to this session if possible, 
+          // otherwise refetch to be safe.
+          const sessionId = (payload.new as any)?.session_id || (payload.old as any)?.session_id;
+          if (!sessionId || sessionId === activeSession.id) {
+            fetchEntries(activeSession.id);
+            fetchInCabinetEntries(activeSession.id);
+          }
         }
       )
       .subscribe();
@@ -191,6 +208,12 @@ export function useQueue() {
       .from('queue_entries')
       .update({ status: 'in_cabinet' })
       .eq('id', entryId);
+
+    if (!error && activeSession) {
+      // Immediate local update
+      fetchEntries(activeSession.id);
+      fetchInCabinetEntries(activeSession.id);
+    }
     return { error };
   };
 
@@ -227,6 +250,10 @@ export function useQueue() {
       })
       .select('*, doctor:doctors(*)')
       .single();
+
+    if (data && !error) {
+      setEntries(prev => sortByPriority([...prev, data as QueueEntry]));
+    }
 
     return { data, error };
   };
@@ -266,6 +293,11 @@ export function useQueue() {
       .delete()
       .eq('id', entryId);
 
+    if (!error) {
+      setInCabinetEntries(prev => prev.filter(e => e.id !== entryId));
+      setEntries(prev => prev.filter(e => e.id !== entryId));
+    }
+
     return { error };
   };
 
@@ -287,6 +319,11 @@ export function useQueue() {
       .from('queue_entries')
       .update(updates)
       .eq('id', entryId);
+
+    if (!error && activeSession) {
+      fetchEntries(activeSession.id);
+      fetchInCabinetEntries(activeSession.id);
+    }
     return { error };
   };
 
@@ -295,6 +332,11 @@ export function useQueue() {
       .from('queue_entries')
       .delete()
       .eq('id', entryId);
+
+    if (!error) {
+      setEntries(prev => prev.filter(e => e.id !== entryId));
+      setInCabinetEntries(prev => prev.filter(e => e.id !== entryId));
+    }
     return { error };
   };
 

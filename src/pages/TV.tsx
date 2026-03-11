@@ -108,28 +108,34 @@ const TV = () => {
       return;
     }
 
-    // Fetch only necessary fields for currently waiting entries
-    const { data: waitingEntries } = await supabase
+    // Fetch both waiting and in-cabinet entries to distinguish deletions from calls
+    const { data: allSessionEntries } = await supabase
       .from('queue_entries')
-      .select('id, client_id, patient_name, doctor_id, state, state_number, doctor:doctors(name, initial)')
-      .eq('session_id', session.id)
-      .eq('status', 'waiting');
+      .select('id, status, client_id, patient_name, doctor_id, state, state_number, doctor:doctors(name, initial)')
+      .eq('session_id', session.id);
 
-    const currentWaitingIds = new Set((waitingEntries || []).map(e => e.id));
+    const waitingEntries = (allSessionEntries || []).filter(e => e.status === 'waiting');
+    const inCabinetIds = new Set((allSessionEntries || []).filter(e => e.status === 'in_cabinet').map(e => e.id));
 
-    // Detect entries that disappeared from waiting (i.e. just got called/completed)
+    const currentWaitingIds = new Set(waitingEntries.map(e => e.id));
+
+    // Detect entries that disappeared from waiting
     prevWaitingIds.current.forEach(id => {
       if (!currentWaitingIds.has(id)) {
-        const meta = waitingMeta.current.get(id);
-        if (meta) {
-          showAnnouncement(meta.clientId, meta.patientName, meta.doctorName);
+        // ONLY announce if it moved to cabinet. 
+        // If it was deleted from the table, it won't be in inCabinetIds.
+        if (inCabinetIds.has(id)) {
+          const meta = waitingMeta.current.get(id);
+          if (meta) {
+            showAnnouncement(meta.clientId, meta.patientName, meta.doctorName);
+          }
         }
         waitingMeta.current.delete(id);
       }
     });
 
     // Update meta map with current waiting entries
-    (waitingEntries || []).forEach(e => {
+    waitingEntries.forEach(e => {
       if (!waitingMeta.current.has(e.id)) {
         waitingMeta.current.set(e.id, {
           clientId: e.client_id,
@@ -141,17 +147,29 @@ const TV = () => {
 
     prevWaitingIds.current = currentWaitingIds;
 
-    const PRIORITY: Record<string, number> = { U: 0, N: 1, R: 2 };
-
     const newQueues: DoctorQueueInfo[] = doctors.map(doctor => {
       const doctorEntries = (waitingEntries || []).filter(
         e => e.doctor_id === doctor.id
       );
       const sorted = [...doctorEntries].sort((a, b) => {
-        const pa = PRIORITY[a.state] ?? 99;
-        const pb = PRIORITY[b.state] ?? 99;
-        if (pa !== pb) return pa - pb;
-        return a.state_number - b.state_number;
+        // 1. U (Urgent) always has absolute priority
+        if (a.state === 'U' && b.state !== 'U') return -1;
+        if (a.state !== 'U' && b.state === 'U') return 1;
+        if (a.state === 'U' && b.state === 'U') return a.state_number - b.state_number;
+
+        // 2. For N (New) and R (Appointment), alternate: N1, R1, N2, R2, ...
+        const getRank = (e: any) => {
+          const num = e.state_number || 0;
+          if (e.state === 'N') return num * 2 - 1; // N1->1, N2->3, N3->5
+          if (e.state === 'R') return num * 2;     // R1->2, R2->4, R3->6
+          return 999;
+        };
+
+        const rankA = getRank(a);
+        const rankB = getRank(b);
+
+        if (rankA !== rankB) return rankA - rankB;
+        return (a.state_number || 0) - (b.state_number || 0);
       });
       return {
         doctor,
