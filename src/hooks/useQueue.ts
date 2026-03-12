@@ -13,6 +13,7 @@ export interface QueueEntry {
   client_id: string;
   position: number;
   status: 'waiting' | 'in_cabinet' | 'completed';
+  appointment_id?: string;
   created_at: string;
   doctor?: { name: string; initial: string };
 }
@@ -217,7 +218,7 @@ export function useQueue() {
     return { error };
   };
 
-  const addClient = async (phone: string, state: 'U' | 'N' | 'R', doctorId: string, patientName?: string) => {
+  const addClient = async (phone: string, state: 'U' | 'N' | 'R', doctorId: string, patientName?: string, appointmentId?: string) => {
     if (!activeSession) return { error: new Error('Aucune séance active') };
 
     const doctor = doctors.find(d => d.id === doctorId);
@@ -247,9 +248,15 @@ export function useQueue() {
         state_number: nextNumber,
         client_id: clientId,
         position,
+        appointment_id: appointmentId,
       })
       .select('*, doctor:doctors(*)')
       .single();
+
+    if (appointmentId) {
+      // Mark appointment as 'coming'
+      await supabase.from('appointments').update({ status: 'coming' }).eq('id', appointmentId);
+    }
 
     if (data && !error) {
       setEntries(prev => sortByPriority([...prev, data as QueueEntry]));
@@ -283,7 +290,13 @@ export function useQueue() {
       total_amount: totalAmount,
       tranche_paid: tranchePaid,
       receptionist_id: receptionistId,
+      appointment_id: entry.appointment_id,
     });
+
+    if (entry.appointment_id) {
+      // Mark appointment as 'attended'
+      await supabase.from('appointments').update({ status: 'attended' }).eq('id', entry.appointment_id);
+    }
 
     if (insertError) return { error: insertError };
 

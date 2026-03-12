@@ -1,4 +1,5 @@
-import { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueue, QueueEntry } from '@/hooks/useQueue';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Phone, Plus, LogOut, ChevronRight, ChevronLeft, Users, Clock, CheckCircle, XCircle, MessageCircle, Pencil, Trash2, UserCheck } from 'lucide-react';
+import { Phone, Plus, LogOut, ChevronRight, ChevronLeft, Users, Clock, CheckCircle, XCircle, MessageCircle, Pencil, Trash2, UserCheck, Calendar } from 'lucide-react';
 
 const TREATMENTS = ['Consultation', 'Blanchiment', 'Extraction', 'Détartrage', 'Soin dentaire', 'Prothèse', 'Orthodontie'];
 
@@ -45,12 +46,14 @@ const Accueil = () => {
   const [newPatientName, setNewPatientName] = useState('');
   const [newState, setNewState] = useState<'U' | 'N' | 'R'>('N');
   const [newDoctorId, setNewDoctorId] = useState('');
+  const [linkedAppointmentId, setLinkedAppointmentId] = useState<string | null>(null);
 
   // Complete form
   const [clientName, setClientName] = useState('');
   const [treatment, setTreatment] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
   const [tranchePaid, setTranchePaid] = useState('');
+  const [totalPaidPreviously, setTotalPaidPreviously] = useState(0);
 
   const [completedClients, setCompletedClients] = useState<any[]>([]);
 
@@ -81,7 +84,7 @@ const Accueil = () => {
       const waitingCount = entries.length;
       const inCabinetCount = inCabinetEntries.length;
       toast.error(
-        `Impossible de fermer la séance avec ${waitingCount + inCabinetCount} client(s) en attente (${waitingCount} en file d'attente, ${inCabinetCount} au cabinet)`
+        `Impossible de fermer la séance avec ${waitingCount + inCabinetCount} patient(s) en attente (${waitingCount} en file d'attente, ${inCabinetCount} au cabinet)`
       );
       return;
     }
@@ -96,7 +99,7 @@ const Accueil = () => {
       toast.error('Veuillez remplir tous les champs');
       return;
     }
-    const { error } = await addClient(newPhone, newState, newDoctorId, newPatientName);
+    const { error } = await addClient(newPhone, newState, newDoctorId, newPatientName, linkedAppointmentId || undefined);
     if (error) {
       if ((error as any).code === '23505') {
         toast.error('Ce numéro de téléphone est déjà dans la file d\'attente');
@@ -105,32 +108,93 @@ const Accueil = () => {
       }
     }
     else {
-      toast.success('Client ajouté à la file');
+      toast.success('Patient ajouté à la file');
       setShowAddModal(false);
       setNewPhone('');
       setNewPatientName('');
       setNewState('N');
       setNewDoctorId('');
+      setLinkedAppointmentId(null);
     }
   };
+
+  // Search for appointment when phone or state changes
+  React.useEffect(() => {
+    const searchAppointment = async () => {
+      if (newState === 'R' && newPhone.length >= 8) {
+        const today = new Date();
+        const start = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+        const end = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+
+        const { data } = await (await import('@/integrations/supabase/client')).supabase
+          .from('appointments')
+          .select('id, client_name, doctor_id')
+          .eq('client_phone', newPhone.trim())
+          .gte('appointment_at', start)
+          .lte('appointment_at', end)
+          .maybeSingle();
+
+        if (data) {
+          setNewPatientName(data.client_name);
+          setNewDoctorId(data.doctor_id);
+          setLinkedAppointmentId(data.id);
+          toast.info(`Rendez-vous trouvé pour ${data.client_name}`);
+        } else {
+          setLinkedAppointmentId(null);
+        }
+      } else if (newState !== 'R') {
+        setLinkedAppointmentId(null);
+      }
+    };
+    searchAppointment();
+  }, [newPhone, newState]);
 
   const handleNext = async (entry: QueueEntry) => {
     // Call client - move from waiting to in_cabinet
     const { error } = await callClient(entry.id);
     if (error) {
-      toast.error('Erreur lors de l\'appel du client');
+      toast.error('Erreur lors de l\'appel du patient');
     } else {
-      toast.success(`Client ${entry.client_id} appelé au cabinet`);
+      toast.success(`Patient ${entry.client_id} appelé au cabinet`);
     }
   };
 
-  const handleCompleteClick = (entry: QueueEntry) => {
+  const handleCompleteClick = async (entry: QueueEntry) => {
     // Open completion form for in-cabinet client
     setSelectedEntry(entry);
     setClientName(entry.patient_name || '');
-    setTreatment('');
-    setTotalAmount('');
-    setTranchePaid('');
+
+    // Fetch history for pre-filling
+    try {
+      const { data: history } = await (await import('@/integrations/supabase/client')).supabase
+        .from('completed_clients')
+        .select('*')
+        .eq('phone', entry.phone)
+        .order('completed_at', { ascending: false });
+
+      if (history && history.length > 0) {
+        const lastVisit = history[0];
+        const totalPrevious = history.reduce((sum, item) => sum + (item.tranche_paid || 0), 0);
+
+        setTreatment(lastVisit.treatment);
+        setTotalAmount(lastVisit.total_amount?.toString() || '');
+        setTotalPaidPreviously(totalPrevious);
+        // Reset current payment for new visit
+        setTranchePaid('');
+      } else {
+        setTreatment('');
+        setTotalAmount('');
+        setTotalPaidPreviously(0);
+        setTranchePaid('');
+      }
+    } catch (err) {
+      console.error('Error fetching history:', err);
+      setTreatment('');
+      setTotalAmount('');
+      setTotalPaidPreviously(0);
+      setTranchePaid('');
+    }
+
     setShowCompleteModal(true);
   };
 
@@ -149,7 +213,7 @@ const Accueil = () => {
     );
     if (error) toast.error('Erreur');
     else {
-      toast.success('Client traité avec succès');
+      toast.success('Patient traité avec succès');
       setShowCompleteModal(false);
     }
   };
@@ -176,7 +240,7 @@ const Accueil = () => {
     });
     if (error) toast.error('Erreur lors de la modification');
     else {
-      toast.success('Client modifié avec succès');
+      toast.success('Patient modifié avec succès');
       setShowEditModal(false);
     }
   };
@@ -184,7 +248,7 @@ const Accueil = () => {
   const handleDelete = async (entryId: string) => {
     const { error } = await deleteClient(entryId);
     if (error) toast.error('Erreur lors de la suppression');
-    else toast.success('Client supprimé');
+    else toast.success('Patient supprimé');
   };
 
   const fetchCompleted = async () => {
@@ -252,6 +316,16 @@ const Accueil = () => {
           <p className="text-[10px] text-muted-foreground truncate uppercase">le soin qui passe</p>
         </div>
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <Link to="/rendezvous">
+            <Button variant="outline" size="sm" className="hidden sm:flex">
+              <Calendar className="h-4 w-4 mr-1" /> Rendez-vous
+            </Button>
+          </Link>
+          <Link to="/rendezvous">
+            <Button variant="outline" size="icon" className="sm:hidden h-8 w-8">
+              <Calendar className="h-4 w-4" />
+            </Button>
+          </Link>
           <Button variant="outline" size="sm" onClick={fetchCompleted} className="hidden sm:flex">
             <CheckCircle className="h-4 w-4 mr-1" /> Terminés
           </Button>
@@ -275,9 +349,9 @@ const Accueil = () => {
                 <AlertDialogDescription>
                   {entries.length > 0 || inCabinetEntries.length > 0 ? (
                     <span className="text-destructive">
-                      Impossible de fermer la séance : {entries.length + inCabinetEntries.length} client(s) en attente
+                      Impossible de fermer la séance : {entries.length + inCabinetEntries.length} patient(s) en attente
                       ({entries.length} en file d'attente, {inCabinetEntries.length} au cabinet).
-                      Veuillez traiter ou supprimer tous les clients avant de fermer la séance.
+                      Veuillez traiter ou supprimer tous les patients avant de fermer la séance.
                     </span>
                   ) : (
                     'Cette action va fermer la séance actuelle. La file d\'attente sera remise à zéro et l\'écran TV sera réinitialisé.'
@@ -370,7 +444,7 @@ const Accueil = () => {
         {filtered.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Users className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 opacity-30" />
-            <p>Aucun client en attente</p>
+            <p>Aucun patient en attente</p>
           </div>
         ) : (
           filtered.map((entry, index) => (
@@ -431,7 +505,7 @@ const Accueil = () => {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Supprimer le client ?</AlertDialogTitle>
+                          <AlertDialogTitle>Supprimer le patient ?</AlertDialogTitle>
                           <AlertDialogDescription>
                             Cette action supprimera {entry.client_id} de la file d'attente. Cette action est irréversible.
                           </AlertDialogDescription>
@@ -472,15 +546,23 @@ const Accueil = () => {
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
         <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Ajouter un client</DialogTitle>
+            <DialogTitle>Ajouter un patient</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 sm:space-y-4">
             <Input
               placeholder="Nom du patient"
               value={newPatientName}
-              onChange={(e) => setNewPatientName(e.target.value)}
+              onChange={(e) => {
+                setNewPatientName(e.target.value);
+                setLinkedAppointmentId(null); // Clear link if user manually changes name
+              }}
               className="h-11 sm:h-12"
             />
+            {linkedAppointmentId && (
+              <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 py-1.5 flex items-center gap-1.5">
+                <Calendar className="h-3 w-3" /> Rendez-vous lié
+              </Badge>
+            )}
             <Input
               placeholder="Numéro de téléphone"
               value={newPhone}
@@ -539,8 +621,14 @@ const Accueil = () => {
               type="number"
               className="h-11 sm:h-12"
             />
+            {totalPaidPreviously > 0 && (
+              <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100 flex justify-between items-center">
+                <span className="text-xs font-medium text-emerald-800">Déjà payé (total history):</span>
+                <span className="text-sm font-bold text-emerald-700">{totalPaidPreviously.toLocaleString()} DZD</span>
+              </div>
+            )}
             <Input
-              placeholder="Tranche payée (DZD)"
+              placeholder="Tranche payée aujourd'hui (DZD)"
               value={tranchePaid}
               onChange={(e) => setTranchePaid(e.target.value)}
               type="number"
@@ -557,11 +645,11 @@ const Accueil = () => {
       <Dialog open={showCompleted} onOpenChange={setShowCompleted}>
         <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg max-h-[80dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Clients terminés</DialogTitle>
+            <DialogTitle>Patients terminés</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
             {completedClients.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">Aucun client terminé</p>
+              <p className="text-center text-muted-foreground py-8">Aucun patient terminé</p>
             ) : (
               completedClients.map((c: any) => (
                 <Card key={c.id} className="border-0 shadow-sm">
@@ -589,7 +677,7 @@ const Accueil = () => {
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
         <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Modifier le client · {editEntry?.client_id}</DialogTitle>
+            <DialogTitle>Modifier le patient · {editEntry?.client_id}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 sm:space-y-4">
             <Input

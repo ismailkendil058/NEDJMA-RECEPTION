@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { LogOut, Search, Download, Users, DollarSign, Stethoscope } from 'lucide-react';
+import { LogOut, Search, Download, Users, DollarSign, Stethoscope, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -143,7 +143,9 @@ const Manager = () => {
           <h1 className="text-lg sm:text-xl font-bold text-primary italic">PasseVite</h1>
           <p className="text-[10px] text-muted-foreground uppercase">le soin qui passe</p>
         </div>
-        <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8"><LogOut className="h-4 w-4" /></Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8"><LogOut className="h-4 w-4" /></Button>
+        </div>
       </header>
 
       <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
@@ -201,7 +203,7 @@ const Manager = () => {
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
                 <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-                <span className="text-xs text-muted-foreground">Clients</span>
+                <span className="text-xs text-muted-foreground">Patients</span>
               </div>
               <p className="text-xl sm:text-2xl font-bold text-foreground">{analytics.totalClients}</p>
             </CardContent>
@@ -245,7 +247,7 @@ const Manager = () => {
                 <p className="font-medium text-foreground mb-2 text-sm sm:text-base">Dr. {name}</p>
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   <div>
-                    <p className="text-muted-foreground text-xs">Clients</p>
+                    <p className="text-muted-foreground text-xs">Patients</p>
                     <p className="font-semibold text-foreground">{stats.count}</p>
                   </div>
                   <div>

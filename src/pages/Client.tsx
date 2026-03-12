@@ -220,7 +220,7 @@ const Client = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <p className="text-lg sm:text-xl font-semibold text-red-600">Aucun client trouvé</p>
+                <p className="text-lg sm:text-xl font-semibold text-red-600">Aucun patient trouvé</p>
                 <p className="text-sm text-muted-foreground">Vérifiez vos informations et réessayez.</p>
                 <p className="text-xs text-muted-foreground">Assurez-vous que votre numéro de téléphone ou votre identifiant est correct.</p>
               </div>

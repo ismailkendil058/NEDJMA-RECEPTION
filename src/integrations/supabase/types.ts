@@ -84,6 +84,50 @@ export type Database = {
           },
         ]
       }
+      appointments: {
+        Row: {
+          appointment_at: string
+          client_name: string
+          client_phone: string
+          created_at: string | null
+          doctor_id: string | null
+          id: string
+          notes: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          appointment_at: string
+          client_name: string
+          client_phone: string
+          created_at?: string | null
+          doctor_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          appointment_at?: string
+          client_name?: string
+          client_phone?: string
+          created_at?: string | null
+          doctor_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      },
       doctors: {
         Row: {
           created_at: string | null

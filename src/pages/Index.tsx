@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, Monitor, UserCog, Tv } from 'lucide-react';
+import { Users, Monitor, UserCog, Tv, Calendar } from 'lucide-react';
 
 const Index = () => {
   const sections = [
     { title: 'Espace Client', description: 'Suivez votre position dans la file d\'attente', icon: Users, href: '/client', variant: 'default' as const },
     { title: 'Accueil', description: 'Gestion de la réception et de la file', icon: Monitor, href: '/accueil/login', variant: 'outline' as const },
     { title: 'Manager', description: 'Tableau de bord analytique', icon: UserCog, href: '/manager/login', variant: 'outline' as const },
+    { title: 'Rendez-vous', description: 'Gestion des rendez-vous et agenda', icon: Calendar, href: '/rendezvous', variant: 'outline' as const },
     { title: 'Affichage TV', description: 'File d\'attente en temps réel', icon: Tv, href: '/tv', variant: 'outline' as const },
   ];
 
