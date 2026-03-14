@@ -20,22 +20,34 @@ interface Announcement {
   doctorName: string;
 }
 
+const LiveClock = () => {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="text-right">
+      <p className="text-xl md:text-2xl font-bold text-foreground tabular-nums">
+        {time.toLocaleTimeString('fr-DZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </p>
+      <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 capitalize">
+        {time.toLocaleDateString('fr-DZ', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+      </p>
+    </div>
+  );
+};
+
 const TV = () => {
   const [doctorQueues, setDoctorQueues] = useState<DoctorQueueInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [animate, setAnimate] = useState<string | null>(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const announcementTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevWaitingIds = useRef<Set<string>>(new Set());
   // Map entryId -> { clientId, patientName, doctorName } for entries we've seen while waiting
   const waitingMeta = useRef<Map<string, { clientId: string; patientName?: string; doctorName: string }>>(new Map());
-
-  // Live clock
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const speakAnnouncement = useCallback((clientId: string, patientName: string | undefined, doctorName: string) => {
     if (!window.speechSynthesis) return;
@@ -208,12 +220,6 @@ const TV = () => {
     };
   }, [fetchQueue]);
 
-  const formatTime = (date: Date) =>
-    date.toLocaleTimeString('fr-DZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-  const formatDate = (date: Date) =>
-    date.toLocaleDateString('fr-DZ', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
   if (loading) {
     return (
       <div className="h-[100dvh] transition-all duration-300 flex flex-col items-center justify-center bg-background">
@@ -328,10 +334,7 @@ const TV = () => {
           <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight italic">PasseVite</h1>
           <p className="text-[8px] md:text-[10px] tracking-[0.4em] text-muted-foreground mt-0.5 uppercase">le soin qui passe</p>
         </div>
-        <div className="text-right">
-          <p className="text-xl md:text-2xl font-bold text-foreground tabular-nums">{formatTime(currentTime)}</p>
-          <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 capitalize">{formatDate(currentTime)}</p>
-        </div>
+        <LiveClock />
       </div>
 
       {/* Doctor Cards Grid */}

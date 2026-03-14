@@ -60,6 +60,7 @@ const Rendezvous = () => {
     const [selectedClient, setSelectedClient] = useState<{ phone: string, name: string } | null>(null);
     const [selectedDoctorMobile, setSelectedDoctorMobile] = useState<string>('all');
     const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+    const [viewingClient, setViewingClient] = useState<CompletedClient | null>(null);
 
     // Form state for new appointment
     const [newApptDate, setNewApptDate] = useState<Date | undefined>(new Date());
@@ -71,12 +72,6 @@ const Rendezvous = () => {
     const fetchInitialData = async () => {
         setLoading(true);
         try {
-            // Fetch Clients
-            const { data: clientsData } = await supabase
-                .from('completed_clients')
-                .select('*')
-                .order('completed_at', { ascending: false });
-
             // Fetch Appointments
             const { data: apptsData } = await supabase
                 .from('appointments')
@@ -88,7 +83,6 @@ const Rendezvous = () => {
                 .from('doctors')
                 .select('*');
 
-            if (clientsData) setClients(clientsData as any);
             if (apptsData) setAppointments(apptsData as any);
             if (docsData) {
                 setDoctors(docsData as any);
@@ -108,6 +102,25 @@ const Rendezvous = () => {
         fetchInitialData();
     }, []);
 
+    // Fetch clients with server-side debounce for scalability
+    useEffect(() => {
+        const timeoutId = setTimeout(async () => {
+            let q = supabase
+                .from('completed_clients')
+                .select('*');
+
+            if (searchQuery.trim()) {
+                q = q.or(`client_name.ilike.%${searchQuery.trim()}%,phone.ilike.%${searchQuery.trim()}%`);
+            }
+
+            q = q.order('completed_at', { ascending: false }).limit(200);
+
+            const { data } = await q;
+            if (data) setClients(data as any);
+        }, 300);
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery]);
+
     // Deduplication and debt filtering logic
     const uniqueClients = useMemo(() => {
         const patientData = new Map<string, { latest: CompletedClient, totalPaid: number }>();
@@ -122,7 +135,7 @@ const Rendezvous = () => {
             } else {
                 // Keep the record with the most recent completion date as 'latest'
                 const isNewer = new Date(c.completed_at) > new Date(existing.latest.completed_at);
-                patientData.set(c.phone, {
+                patientData.set(key, { // Fixo: ensure we set using the same key
                     latest: isNewer ? c : existing.latest,
                     totalPaid: existing.totalPaid + currentPaid
                 });
@@ -134,23 +147,25 @@ const Rendezvous = () => {
             .sort((a, b) => a.client_name.localeCompare(b.client_name));
     }, [clients]);
 
-    const filteredClients = useMemo(() => {
-        return uniqueClients.filter(c =>
-            c.client_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            c.phone.includes(searchQuery) ||
-            (c.treatment || '').toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [uniqueClients, searchQuery]);
+    // Use uniqueClients directly because sorting and filtering is handled server-side now
+    const filteredClients = uniqueClients;
+
+    const parsedAppointments = useMemo(() => {
+        return appointments.map(a => ({
+            ...a,
+            startOfDayTime: startOfDay(parseISO(a.appointment_at)).getTime()
+        }));
+    }, [appointments]);
 
     const upcomingAppointments = useMemo(() => {
         const now = new Date();
         const next24h = addHours(now, 24);
-        return appointments.filter(a => {
+        return parsedAppointments.filter(a => {
             const apptDate = parseISO(a.appointment_at);
             const isWithin24h = isWithinInterval(apptDate, { start: now, end: next24h });
             return isWithin24h && a.status !== 'attended' && a.status !== 'denied';
         });
-    }, [appointments]);
+    }, [parsedAppointments]);
 
     const handleUpdateStatus = async (id: string, status: Appointment['status']) => {
         const { error } = await supabase
@@ -409,110 +424,113 @@ const Rendezvous = () => {
                                     <p className="text-center py-10 text-muted-foreground">Aucun patient trouvé</p>
                                 ) : (
                                     filteredClients.map(client => (
-                                        <Dialog key={`${client.phone}_${client.client_name}_${client.treatment}`}>
-                                            <DialogTrigger asChild>
-                                                <Card className="cursor-pointer hover:border-primary/30 hover:bg-primary/[0.02] transition-all group">
-                                                    <CardContent className="p-4 flex items-center justify-between">
-                                                        <div className="space-y-1">
-                                                            <p className="font-bold text-foreground group-hover:text-primary transition-colors">{client.client_name}</p>
-                                                            <p className="text-xs text-muted-foreground">{client.phone} · <span className="text-primary/70">{client.treatment}</span></p>
-                                                        </div>
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="text-right hidden sm:block">
-                                                                <p className="text-[10px] text-muted-foreground uppercase font-medium">Dernière visite</p>
-                                                                <p className="text-xs font-semibold">{format(parseISO(client.completed_at), 'dd/MM/yyyy')}</p>
-                                                            </div>
-                                                            <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
-                                                        </div>
-                                                    </CardContent>
-                                                </Card>
-                                            </DialogTrigger>
-                                            <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden sm:rounded-2xl">
-                                                <DialogHeader className="p-6 pb-2">
-                                                    <DialogTitle className="text-2xl font-black italic text-primary">Dossier Patient</DialogTitle>
-                                                </DialogHeader>
-
-                                                <div className="p-6 pt-0 flex-1 overflow-y-auto space-y-6">
-                                                    <div className="bg-primary/5 p-4 rounded-xl flex items-center justify-between">
-                                                        <div>
-                                                            <h3 className="text-lg font-bold">{client.client_name}</h3>
-                                                            <p className="text-sm font-medium text-primary">{client.phone}</p>
-                                                        </div>
-                                                        <Button variant="default" className="gap-2" onClick={() => {
-                                                            setSelectedClient({ phone: client.phone, name: client.client_name });
-                                                            setIsScheduleOpen(true);
-                                                        }}>
-                                                            <Plus className="h-4 w-4" /> Nouveau RDV
-                                                        </Button>
-                                                    </div>
-
-                                                    <div className="space-y-4">
-                                                        <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                                                            <History className="h-3.5 w-3.5" /> Historique des Paiements
-                                                        </h4>
-                                                        <div className="border rounded-xl overflow-hidden">
-                                                            <Table>
-                                                                <TableHeader className="bg-muted/50">
-                                                                    <TableRow>
-                                                                        <TableHead className="text-xs h-9">Date</TableHead>
-                                                                        <TableHead className="text-xs h-9">Traitement</TableHead>
-                                                                        <TableHead className="text-xs h-9 text-right">Total</TableHead>
-                                                                        <TableHead className="text-xs h-9 text-right">Payé</TableHead>
-                                                                    </TableRow>
-                                                                </TableHeader>
-                                                                <TableBody>
-                                                                    {getClientHistory(client.phone, client.client_name, client.treatment).history.map(h => (
-                                                                        <TableRow key={h.id}>
-                                                                            <TableCell className="text-xs py-2">{format(parseISO(h.completed_at), 'dd/MM/yy')}</TableCell>
-                                                                            <TableCell className="text-xs py-2 truncate max-w-[120px]">{h.treatment}</TableCell>
-                                                                            <TableCell className="text-xs py-2 text-right font-medium">{h.total_amount?.toLocaleString()}</TableCell>
-                                                                            <TableCell className="text-xs py-2 text-right text-emerald-600 font-bold">{h.tranche_paid?.toLocaleString()}</TableCell>
-                                                                        </TableRow>
-                                                                    ))}
-                                                                </TableBody>
-                                                            </Table>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex justify-between items-center">
-                                                        <div>
-                                                            <p className="text-[10px] uppercase font-bold text-emerald-600">Total payé pour ce traitement</p>
-                                                            <p className="text-2xl font-black text-emerald-700">
-                                                                {(client as any).totalPaid?.toLocaleString()} DZD
-                                                            </p>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <p className="text-[10px] uppercase font-bold text-emerald-600">Montant total</p>
-                                                            <p className="text-lg font-bold text-emerald-800">{client.total_amount?.toLocaleString()} DZD</p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-4">
-                                                        <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                                                            <CalendarIcon className="h-3.5 w-3.5" /> Historique des Rendez-vous
-                                                        </h4>
-                                                        <div className="space-y-2">
-                                                            {getClientHistory(client.phone, client.client_name, client.treatment).appts.length === 0 ? (
-                                                                <p className="text-sm text-center py-4 bg-muted/20 rounded-xl text-muted-foreground">Aucun historique de rendez-vous</p>
-                                                            ) : (
-                                                                getClientHistory(client.phone, client.client_name, client.treatment).appts.map(a => (
-                                                                    <div key={a.id} className="flex items-center justify-between p-3 rounded-xl border text-sm">
-                                                                        <div>
-                                                                            <p className="font-semibold">{format(parseISO(a.appointment_at), 'PPp', { locale: fr })}</p>
-                                                                            <p className="text-xs text-muted-foreground">Dr. {a.doctor?.name || '...'}</p>
-                                                                        </div>
-                                                                        <Badge variant="outline" className={`text-[10px] capitalize ${getStatusStyle(a.status)}`}>{a.status}</Badge>
-                                                                    </div>
-                                                                ))
-                                                            )}
-                                                        </div>
-                                                    </div>
+                                        <Card key={`${client.phone}_${client.client_name}_${client.treatment}`} onClick={() => setViewingClient(client)} className="cursor-pointer hover:border-primary/30 hover:bg-primary/[0.02] transition-all group">
+                                            <CardContent className="p-4 flex items-center justify-between">
+                                                <div className="space-y-1">
+                                                    <p className="font-bold text-foreground group-hover:text-primary transition-colors">{client.client_name}</p>
+                                                    <p className="text-xs text-muted-foreground">{client.phone} · <span className="text-primary/70">{client.treatment}</span></p>
                                                 </div>
-                                            </DialogContent>
-                                        </Dialog>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="text-right hidden sm:block">
+                                                        <p className="text-[10px] text-muted-foreground uppercase font-medium">Dernière visite</p>
+                                                        <p className="text-xs font-semibold">{format(parseISO(client.completed_at), 'dd/MM/yyyy')}</p>
+                                                    </div>
+                                                    <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                                                </div>
+                                            </CardContent>
+                                        </Card>
                                     ))
                                 )}
                             </div>
+
+                            <Dialog open={!!viewingClient} onOpenChange={(open) => !open && setViewingClient(null)}>
+                                <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden sm:rounded-2xl">
+                                    {viewingClient && (
+                                        <>
+                                            <DialogHeader className="p-6 pb-2">
+                                                <DialogTitle className="text-2xl font-black italic text-primary">Dossier Patient</DialogTitle>
+                                            </DialogHeader>
+
+                                            <div className="p-6 pt-0 flex-1 overflow-y-auto space-y-6">
+                                                <div className="bg-primary/5 p-4 rounded-xl flex items-center justify-between">
+                                                    <div>
+                                                        <h3 className="text-lg font-bold">{viewingClient.client_name}</h3>
+                                                        <p className="text-sm font-medium text-primary">{viewingClient.phone}</p>
+                                                    </div>
+                                                    <Button variant="default" className="gap-2" onClick={() => {
+                                                        setSelectedClient({ phone: viewingClient.phone, name: viewingClient.client_name });
+                                                        setIsScheduleOpen(true);
+                                                    }}>
+                                                        <Plus className="h-4 w-4" /> Nouveau RDV
+                                                    </Button>
+                                                </div>
+
+                                                <div className="space-y-4">
+                                                    <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                                        <History className="h-3.5 w-3.5" /> Historique des Paiements
+                                                    </h4>
+                                                    <div className="border rounded-xl overflow-hidden">
+                                                        <Table>
+                                                            <TableHeader className="bg-muted/50">
+                                                                <TableRow>
+                                                                    <TableHead className="text-xs h-9">Date</TableHead>
+                                                                    <TableHead className="text-xs h-9">Traitement</TableHead>
+                                                                    <TableHead className="text-xs h-9 text-right">Total</TableHead>
+                                                                    <TableHead className="text-xs h-9 text-right">Payé</TableHead>
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {getClientHistory(viewingClient.phone, viewingClient.client_name, viewingClient.treatment).history.map(h => (
+                                                                    <TableRow key={h.id}>
+                                                                        <TableCell className="text-xs py-2">{format(parseISO(h.completed_at), 'dd/MM/yy')}</TableCell>
+                                                                        <TableCell className="text-xs py-2 truncate max-w-[120px]">{h.treatment}</TableCell>
+                                                                        <TableCell className="text-xs py-2 text-right font-medium">{h.total_amount?.toLocaleString()}</TableCell>
+                                                                        <TableCell className="text-xs py-2 text-right text-emerald-600 font-bold">{h.tranche_paid?.toLocaleString()}</TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                </div>
+
+                                                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex justify-between items-center">
+                                                    <div>
+                                                        <p className="text-[10px] uppercase font-bold text-emerald-600">Total payé pour ce traitement</p>
+                                                        <p className="text-2xl font-black text-emerald-700">
+                                                            {(viewingClient as any).totalPaid?.toLocaleString()} DZD
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-[10px] uppercase font-bold text-emerald-600">Montant total</p>
+                                                        <p className="text-lg font-bold text-emerald-800">{viewingClient.total_amount?.toLocaleString()} DZD</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-4">
+                                                    <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                                        <CalendarIcon className="h-3.5 w-3.5" /> Historique des Rendez-vous
+                                                    </h4>
+                                                    <div className="space-y-2">
+                                                        {getClientHistory(viewingClient.phone, viewingClient.client_name, viewingClient.treatment).appts.length === 0 ? (
+                                                            <p className="text-sm text-center py-4 bg-muted/20 rounded-xl text-muted-foreground">Aucun historique de rendez-vous</p>
+                                                        ) : (
+                                                            getClientHistory(viewingClient.phone, viewingClient.client_name, viewingClient.treatment).appts.map(a => (
+                                                                <div key={a.id} className="flex items-center justify-between p-3 rounded-xl border text-sm">
+                                                                    <div>
+                                                                        <p className="font-semibold">{format(parseISO(a.appointment_at), 'PPp', { locale: fr })}</p>
+                                                                        <p className="text-xs text-muted-foreground">Dr. {a.doctor?.name || '...'}</p>
+                                                                    </div>
+                                                                    <Badge variant="outline" className={`text-[10px] capitalize ${getStatusStyle(a.status)}`}>{a.status}</Badge>
+                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </DialogContent>
+                            </Dialog>
                         </div>
                     </TabsContent>
 
@@ -569,8 +587,8 @@ const Rendezvous = () => {
                                                                 </div>
 
                                                                 {/* Appointments for this doctor on selected current day (for simplicity current today view) */}
-                                                                {appointments
-                                                                    .filter(a => a.doctor_id === doctor.id && startOfDay(parseISO(a.appointment_at)).getTime() === startOfDay(newApptDate || new Date()).getTime())
+                                                                {parsedAppointments
+                                                                    .filter(a => a.status !== 'denied' && a.doctor_id === doctor.id && a.startOfDayTime === startOfDay(newApptDate || new Date()).getTime())
                                                                     .map(appt => {
                                                                         const date = parseISO(appt.appointment_at);
                                                                         const hours = date.getHours();
@@ -624,7 +642,7 @@ const Rendezvous = () => {
                                         <div className="flex justify-between items-center text-primary-foreground/80">
                                             <span className="text-sm">Total RDV</span>
                                             <span className="text-xl font-black">
-                                                {appointments.filter(a => startOfDay(parseISO(a.appointment_at)).getTime() === startOfDay(newApptDate || new Date()).getTime()).length}
+                                                {parsedAppointments.filter(a => a.startOfDayTime === startOfDay(newApptDate || new Date()).getTime()).length}
                                             </span>
                                         </div>
                                         <div className="h-px bg-white/20" />
@@ -737,7 +755,7 @@ const Rendezvous = () => {
             <footer className="p-4 border-t bg-muted/20 text-center">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest">&copy; PasseVite - Gestion Holistique des Soins</p>
             </footer>
-        </div>
+        </div >
     );
 };
 

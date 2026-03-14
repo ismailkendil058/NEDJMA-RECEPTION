@@ -130,6 +130,8 @@ export function useQueue() {
   useEffect(() => {
     if (!activeSession) return;
 
+    let timeoutId: ReturnType<typeof setTimeout>;
+
     const channel = supabase
       .channel(`queue-${activeSession.id}`)
       .on(
@@ -138,22 +140,26 @@ export function useQueue() {
           event: '*',
           schema: 'public',
           table: 'queue_entries',
-          // Removed session_id filter because DELETE events don't include it in the payload
-          // unless Replica Identity is set to FULL, which prevents real-time from firing.
         },
         (payload) => {
           // Re-verify if the change belongs to this session if possible, 
           // otherwise refetch to be safe.
           const sessionId = (payload.new as any)?.session_id || (payload.old as any)?.session_id;
           if (!sessionId || sessionId === activeSession.id) {
-            fetchEntries(activeSession.id);
-            fetchInCabinetEntries(activeSession.id);
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+              fetchEntries(activeSession.id);
+              fetchInCabinetEntries(activeSession.id);
+            }, 300); // Debounce rapidly chained real-time events
           }
         }
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      clearTimeout(timeoutId);
+      supabase.removeChannel(channel);
+    };
   }, [activeSession?.id, fetchEntries, fetchInCabinetEntries]);
 
   // Session real-time

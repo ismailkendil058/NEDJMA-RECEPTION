@@ -133,41 +133,46 @@ const Accueil = () => {
     }
   };
 
-  // Search for appointment when phone or state changes
+  // Search for appointment when phone or state changes with debounce
   React.useEffect(() => {
-    const searchAppointments = async () => {
-      if (newState === 'R' && newPhone.length >= 8) {
-        const today = new Date();
-        const start = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-        const end = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+    const timeoutId = setTimeout(() => {
+      const searchAppointments = async () => {
+        if (newState === 'R' && newPhone.length >= 8) {
+          const today = new Date();
+          const start = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+          const end = new Date(today.setHours(23, 59, 59, 999)).toISOString();
 
-        const { data } = await (await import('@/integrations/supabase/client')).supabase
-          .from('appointments')
-          .select('id, client_name, doctor_id')
-          .eq('client_phone', newPhone.trim())
-          .gte('appointment_at', start)
-          .lte('appointment_at', end);
+          const { data } = await (await import('@/integrations/supabase/client')).supabase
+            .from('appointments')
+            .select('id, client_name, doctor_id')
+            .eq('client_phone', newPhone.trim())
+            .gte('appointment_at', start)
+            .lte('appointment_at', end);
 
-        if (data && data.length > 0) {
-          setFoundAppointments(data);
-          if (data.length === 1) {
-            setNewPatientName(data[0].client_name);
-            setNewDoctorId(data[0].doctor_id);
-            setLinkedAppointmentId(data[0].id);
-            toast.info(`Rendez-vous trouvé pour ${data[0].client_name}`);
+          if (data && data.length > 0) {
+            setFoundAppointments(data);
+            if (data.length === 1) {
+              setNewPatientName(data[0].client_name);
+              setNewDoctorId(data[0].doctor_id);
+              setLinkedAppointmentId(data[0].id);
+              toast.info(`Rendez-vous trouvé pour ${data[0].client_name}`);
+            } else {
+              toast.info(`${data.length} rendez-vous trouvés pour ce numéro. Veuillez choisir.`);
+            }
           } else {
-            toast.info(`${data.length} rendez-vous trouvés pour ce numéro. Veuillez choisir.`);
+            setFoundAppointments([]);
+            setLinkedAppointmentId(null);
           }
         } else {
           setFoundAppointments([]);
-          setLinkedAppointmentId(null);
+          if (newState !== 'R') setLinkedAppointmentId(null);
         }
-      } else {
-        setFoundAppointments([]);
-        if (newState !== 'R') setLinkedAppointmentId(null);
-      }
-    };
-    searchAppointments();
+      };
+
+      searchAppointments();
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
   }, [newPhone, newState]);
 
   const handleNext = async (entry: QueueEntry) => {
