@@ -1,7 +1,6 @@
 import { Suspense, lazy } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
@@ -15,6 +14,10 @@ const Client = lazy(() => import("./pages/Client"));
 const Manager = lazy(() => import("./pages/Manager"));
 const TV = lazy(() => import("./pages/TV"));
 const Rendezvous = lazy(() => import("./pages/Rendezvous"));
+const Satisfaction = lazy(() => import("./pages/Satisfaction"));
+const AvisGoogle = lazy(() => import("./pages/AvisGoogle"));
+const Feedback = lazy(() => import("./pages/Feedback"));
+const Merci = lazy(() => import("./pages/Merci"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const LoadingScreen = () => (
@@ -36,7 +39,6 @@ function ProtectedRoute({ children, requiredRoles }: { children: React.ReactNode
     return <Navigate to="/" replace />;
   }
 
-  // If we need a role but it's not loaded yet, wait
   if (requiredRoles && userRole === null) return <LoadingScreen />;
 
   if (requiredRoles && !requiredRoles.includes(userRole || '')) {
@@ -61,6 +63,10 @@ const App = () => (
             <Route path="/manager/login" element={<LoginManager />} />
             <Route path="/client" element={<Client />} />
             <Route path="/tv" element={<TV />} />
+            <Route path="/satisfaction" element={<Satisfaction />} />
+            <Route path="/avis-google" element={<AvisGoogle />} />
+            <Route path="/feedback" element={<Feedback />} />
+            <Route path="/merci" element={<Merci />} />
             <Route path="/accueil" element={
               <ProtectedRoute requiredRoles={['receptionist']}><Accueil /></ProtectedRoute>
             } />
@@ -79,3 +85,4 @@ const App = () => (
 );
 
 export default App;
+

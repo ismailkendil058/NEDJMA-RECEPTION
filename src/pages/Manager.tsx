@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { FeedbackStats } from '@/components/FeedbackStats';
 import { LogOut, Search, Download, Users, DollarSign, Stethoscope, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -144,6 +145,7 @@ const Manager = () => {
           <p className="text-[10px] text-muted-foreground uppercase">le soin qui passe</p>
         </div>
         <div className="flex items-center gap-2">
+          <FeedbackStats />
           <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8"><LogOut className="h-4 w-4" /></Button>
         </div>
       </header>
