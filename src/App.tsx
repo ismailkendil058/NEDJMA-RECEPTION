@@ -63,7 +63,7 @@ const App = () => (
             <Route path="/manager/login" element={<LoginManager />} />
             <Route path="/client" element={<Client />} />
             <Route path="/tv" element={<TV />} />
-            <Route path="/satisfaction" element={<Satisfaction />} />
+            <Route path="/review" element={<Satisfaction />} />
             <Route path="/avis-google" element={<AvisGoogle />} />
             <Route path="/feedback" element={<Feedback />} />
             <Route path="/merci" element={<Merci />} />
