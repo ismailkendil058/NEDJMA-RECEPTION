@@ -10,6 +10,8 @@ import { FeedbackStats } from '@/components/FeedbackStats';
 import { LogOut, Search, Download, Users, DollarSign, Stethoscope, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { Link } from 'react-router-dom';
+import { FileText } from 'lucide-react';
 
 interface CompletedClient {
   id: string;
@@ -146,6 +148,12 @@ const Manager = () => {
         </div>
         <div className="flex items-center gap-2">
           <FeedbackStats />
+          <Button asChild variant="ghost" size="sm" className="h-9">
+            <Link to="/ordonnance">
+              <FileText className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Ordonnance</span>
+            </Link>
+          </Button>
           <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8"><LogOut className="h-4 w-4" /></Button>
         </div>
       </header>

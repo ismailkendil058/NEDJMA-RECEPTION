@@ -19,6 +19,7 @@ const AvisGoogle = lazy(() => import("./pages/AvisGoogle"));
 const Feedback = lazy(() => import("./pages/Feedback"));
 const Merci = lazy(() => import("./pages/Merci"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Ordonnance = lazy(() => import("./pages/Ordonnance"));
 
 const LoadingScreen = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
@@ -76,6 +77,8 @@ const App = () => (
             <Route path="/rendezvous" element={
               <ProtectedRoute requiredRoles={['manager', 'receptionist']}><Rendezvous /></ProtectedRoute>
             } />
+            <Route path="/ordonnance" element={<Ordonnance />} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
