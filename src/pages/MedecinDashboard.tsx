@@ -21,7 +21,7 @@ import {
 import { format, parseISO, startOfToday, endOfToday, startOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -174,16 +174,6 @@ const MedecinDashboard = () => {
         return revenuePerMonth;
     }, [patients]);
 
-    const treatmentDistribution = useMemo(() => {
-        const counts: Record<string, number> = {};
-        patients.forEach(p => {
-            const t = p.treatment || 'Autre';
-            counts[t] = (counts[t] || 0) + 1;
-        });
-        return Object.entries(counts).map(([name, value]) => ({ name, value }));
-    }, [patients]);
-
-    const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981'];
 
     return (
         <div className="min-h-screen bg-background flex flex-col">
@@ -449,7 +439,7 @@ const MedecinDashboard = () => {
                     {/* ANALYTICS CONTENT */}
                     <TabsContent value="analytics" className="mt-6 animate-in fade-in slide-in-from-bottom-2">
                         <div className="space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <Card className="border-none shadow-premium bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-3xl">
                                     <CardContent className="p-6">
                                         <div className="flex justify-between items-start mb-4">
@@ -472,16 +462,9 @@ const MedecinDashboard = () => {
                                         <h3 className="text-3xl font-black text-slate-800">{patients.length}</h3>
                                     </CardContent>
                                 </Card>
-                                <Card className="border-none shadow-premium bg-white rounded-3xl">
-                                    <CardContent className="p-6">
-                                        <FileText className="h-8 w-8 text-primary/20 mb-4" />
-                                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Ordonnances</p>
-                                        <h3 className="text-3xl font-black text-slate-800">{prescriptions.length}</h3>
-                                    </CardContent>
-                                </Card>
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div className="grid grid-cols-1 gap-8">
                                 <Card className="border-none shadow-premium bg-white rounded-3xl">
                                     <CardHeader>
                                         <CardTitle className="text-lg font-black italic">Croissance du Revenu</CardTitle>
@@ -495,31 +478,6 @@ const MedecinDashboard = () => {
                                                 <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
                                                 <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
                                             </BarChart>
-                                        </ResponsiveContainer>
-                                    </CardContent>
-                                </Card>
-                                <Card className="border-none shadow-premium bg-white rounded-3xl">
-                                    <CardHeader>
-                                        <CardTitle className="text-lg font-black italic">Répartition des Soins</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="h-[300px]">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <RePieChart>
-                                                <Pie
-                                                    data={treatmentDistribution}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    innerRadius={60}
-                                                    outerRadius={100}
-                                                    paddingAngle={5}
-                                                    dataKey="value"
-                                                >
-                                                    {treatmentDistribution.map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                    ))}
-                                                </Pie>
-                                                <RechartsTooltip />
-                                            </RePieChart>
                                         </ResponsiveContainer>
                                     </CardContent>
                                 </Card>
