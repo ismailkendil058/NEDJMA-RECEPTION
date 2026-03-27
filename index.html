@@ -19,6 +19,7 @@
   <meta name="twitter:site" content="@PasseVite" />
   <meta name="twitter:image" content="/VitalWeb.png" />
   <link rel="icon" type="image/png" href="/VitalWeb.png" />
+  <link rel="manifest" href="/manifest.json" />
 
   <!-- PWA & iOS Safari Full Screen Tags -->
   <meta name="mobile-web-app-capable" content="yes" />
@@ -29,6 +30,24 @@
 
 <body>
   <div id="root"></div>
+  <script type="text/javascript">
+    // Fix for iOS standalone mode links opening in Safari
+    (function (document, navigator, standalone) {
+      if ((standalone in navigator) && navigator[standalone]) {
+        var curnode, location = document.location, stop = /^(a|html)$/i;
+        document.addEventListener('click', function (e) {
+          curnode = e.target;
+          while (!(stop).test(curnode.nodeName)) {
+            curnode = curnode.parentNode;
+          }
+          if ('href' in curnode && (curnode.href.indexOf('http') || ~curnode.href.indexOf(location.host)) && (!curnode.target || curnode.target == '_self')) {
+            e.preventDefault();
+            location.href = curnode.href;
+          }
+        }, false);
+      }
+    })(document, window.navigator, 'standalone');
+  </script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 

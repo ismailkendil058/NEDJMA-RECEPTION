@@ -134,18 +134,21 @@ export type Database = {
           id: string
           initial: string
           name: string
+          password: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
           initial: string
           name: string
+          password?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
           initial?: string
           name?: string
+          password?: string | null
         }
         Relationships: []
       }
@@ -183,65 +186,7 @@ export type Database = {
           state: string
           state_number: number
           status: string
-        },
-      medications: {
-        Row: {
-          id: string
-          name: string
-          created_at: string | null
-          created_by: string | null
         }
-        Insert: {
-          name: string
-          created_by?: string | null
-          created_at?: string | null
-        }
-        Update: {
-          name?: string
-          created_by?: string | null
-          created_at?: string | null
-        }
-        Relationships: []
-      },
-      prescriptions: {
-        Row: {
-          id: string
-          doctor_id: string
-          patient_name: string
-          age: number | null
-          prescription_date: string
-          medications: Json
-          notes: string | null
-          created_at: string | null
-        }
-        Insert: {
-          doctor_id: string
-          patient_name: string
-          age?: number | null
-          prescription_date: string
-          medications: Json
-          notes?: string | null
-          created_at?: string | null
-        }
-        Update: {
-          doctor_id?: string
-          patient_name?: string
-          age?: number | null
-          prescription_date?: string
-          medications?: Json
-          notes?: string | null
-          created_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "prescriptions_doctor_id_fkey"
-            columns: ["doctor_id"]
-            isOneToOne: false
-            referencedRelation: "doctors"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
         Insert: {
           client_id: string
           created_at?: string | null
@@ -283,6 +228,64 @@ export type Database = {
             referencedRelation: "sessions"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      medications: {
+        Row: {
+          id: string
+          name: string
+          created_at: string | null
+          created_by: string | null
+        }
+        Insert: {
+          name: string
+          created_by?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          name?: string
+          created_by?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      prescriptions: {
+        Row: {
+          id: string
+          doctor_id: string
+          patient_name: string
+          age: number | null
+          prescription_date: string
+          medications: Json
+          notes: string | null
+          created_at: string | null
+        }
+        Insert: {
+          doctor_id: string
+          patient_name: string
+          age?: number | null
+          prescription_date: string
+          medications: Json
+          notes?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          doctor_id?: string
+          patient_name?: string
+          age?: number | null
+          prescription_date?: string
+          medications?: Json
+          notes?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prescriptions_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          }
         ]
       }
       sessions: {

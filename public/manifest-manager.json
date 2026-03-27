@@ -3,6 +3,7 @@
     "short_name": "PV Manager",
     "description": "Tableau de bord gérant PasseVite.",
     "start_url": "/manager/login",
+    "scope": "/",
     "display": "standalone",
     "background_color": "#1e293b",
     "theme_color": "#1e293b",

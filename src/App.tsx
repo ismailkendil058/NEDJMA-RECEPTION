@@ -10,6 +10,7 @@ import DynamicManifest from "./components/DynamicManifest";
 import Index from "./pages/Index";
 import LoginAccueil from "./pages/LoginAccueil";
 const LoginManager = lazy(() => import("./pages/LoginManager"));
+const LoginMedecin = lazy(() => import("./pages/LoginMedecin"));
 const Accueil = lazy(() => import("./pages/Accueil"));
 const Client = lazy(() => import("./pages/Client"));
 const Manager = lazy(() => import("./pages/Manager"));
@@ -21,6 +22,7 @@ const Feedback = lazy(() => import("./pages/Feedback"));
 const Merci = lazy(() => import("./pages/Merci"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Ordonnance = lazy(() => import("./pages/Ordonnance"));
+const MedecinDashboard = lazy(() => import("./pages/MedecinDashboard"));
 
 const LoadingScreen = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
@@ -64,6 +66,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/accueil/login" element={<LoginAccueil />} />
             <Route path="/manager/login" element={<LoginManager />} />
+            <Route path="/medecin/login" element={<LoginMedecin />} />
             <Route path="/client" element={<Client />} />
             <Route path="/tv" element={<TV />} />
             <Route path="/review" element={<Satisfaction />} />
@@ -80,6 +83,7 @@ const App = () => (
               <ProtectedRoute requiredRoles={['manager', 'receptionist']}><Rendezvous /></ProtectedRoute>
             } />
             <Route path="/ordonnance" element={<Ordonnance />} />
+            <Route path="/medecin-dashboard" element={<MedecinDashboard />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
