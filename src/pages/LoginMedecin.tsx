@@ -57,7 +57,7 @@ const LoginMedecin = () => {
         }));
 
         toast.success(`Bienvenue Dr. ${matchedDoctor.name}`);
-        navigate('/medecin-dashboard');
+        navigate('/doctor-dashboard');
     };
 
     return (

@@ -2,7 +2,7 @@
     "name": "PV Médecin",
     "short_name": "Médecin",
     "description": "Portail Docteur PasseVite",
-    "start_url": "/medecin/login",
+    "start_url": "/doctor/login",
     "scope": "/",
     "display": "standalone",
     "background_color": "#ffffff",

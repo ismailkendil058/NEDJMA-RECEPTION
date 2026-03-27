@@ -17,7 +17,7 @@ export default function DynamicManifest() {
             manifestUrl = '/manifest-accueil.json';
             appleIconUrl = '/apple-touch-icon.png';
             title = 'PV Accueil';
-        } else if (location.pathname.startsWith('/medecin')) {
+        } else if (location.pathname.startsWith('/doctor')) {
             manifestUrl = '/manifest-medecin.json';
             appleIconUrl = '/apple-touch-icon.png';
             title = 'PV Médecin';

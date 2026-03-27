@@ -19,13 +19,39 @@
   <meta name="twitter:site" content="@PasseVite" />
   <meta name="twitter:image" content="/VitalWeb.png" />
   <link rel="icon" type="image/png" href="/VitalWeb.png" />
-  <link rel="manifest" href="/manifest.json" />
+  <script type="text/javascript">
+    (function () {
+      var path = window.location.pathname;
+      var manifest = '/manifest.json';
+      var title = 'PasseVite';
+
+      if (path.startsWith('/manager')) {
+        manifest = '/manifest-manager.json';
+        title = 'PV Manager';
+      } else if (path.startsWith('/accueil')) {
+        manifest = '/manifest-accueil.json';
+        title = 'PV Accueil';
+      } else if (path.startsWith('/doctor')) {
+        manifest = '/manifest-medecin.json';
+        title = 'PV Médecin';
+      }
+
+      var link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = manifest;
+      document.head.appendChild(link);
+
+      var metaTitle = document.createElement('meta');
+      metaTitle.name = 'apple-mobile-web-app-title';
+      metaTitle.content = title;
+      document.head.appendChild(metaTitle);
+    })();
+  </script>
 
   <!-- PWA & iOS Safari Full Screen Tags -->
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="PasseVite" />
 </head>
 
 <body>

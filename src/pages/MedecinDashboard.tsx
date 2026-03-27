@@ -38,7 +38,7 @@ const MedecinDashboard = () => {
         if (authData) {
             setDoctorInfo(JSON.parse(authData));
         } else {
-            navigate('/medecin/login');
+            navigate('/doctor/login');
         }
     }, [navigate]);
 

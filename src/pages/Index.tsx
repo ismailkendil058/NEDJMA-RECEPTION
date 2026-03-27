@@ -5,12 +5,10 @@ import { Users, Monitor, UserCog, Tv, ClipboardCheck, Stethoscope } from 'lucide
 
 const Index = () => {
   const sections = [
-    { title: 'Espace Client', description: 'Suivez votre position dans la file d\'attente', icon: Users, href: '/client', variant: 'default' as const },
     { title: 'Accueil', description: 'Gestion de la réception et de la file', icon: Monitor, href: '/accueil/login', variant: 'outline' as const },
-    { title: 'Médecin', description: 'Espace Médecin et Ordonnances', icon: Stethoscope, href: '/medecin/login', variant: 'outline' as const },
+    { title: 'Médecin', description: 'Espace Médecin et Ordonnances', icon: Stethoscope, href: '/doctor/login', variant: 'outline' as const },
     { title: 'Manager', description: 'Tableau de bord analytique', icon: UserCog, href: '/manager/login', variant: 'outline' as const },
     { title: 'Affichage TV', description: 'File d\'attente en temps réel', icon: Tv, href: '/tv', variant: 'outline' as const },
-    { title: 'Ordonnance', description: 'Créer et imprimer les ordonnances patients', icon: ClipboardCheck, href: '/ordonnance', variant: 'outline' as const },
   ];
 
   return (

@@ -24,7 +24,7 @@
             "name": "Espace Médecin",
             "short_name": "Médecin",
             "description": "Accès rapide au tableau de bord médecin",
-            "url": "/medecin/login",
+            "url": "/doctor/login",
             "icons": [
                 {
                     "src": "/VitalWeb.png",
