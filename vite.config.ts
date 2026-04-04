@@ -23,11 +23,7 @@ export default defineConfig(({ mode }) => ({
     minify: 'esbuild',
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js'],
-          ui: ['@radix-ui/react-accordion', '@radix-ui/react-dialog', 'lucide-react'],
-          charts: ['recharts'],
-        },
+        // We'll let Vite handle chunking automatically to avoid React instance conflicts
       },
     },
     chunkSizeWarningLimit: 1000,
