@@ -92,8 +92,31 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground overflow-x-hidden;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Custom Aesthetic Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/30 transition-colors;
   }
 }
 
@@ -109,15 +132,25 @@ All colors MUST be HSL.
   .animate-fade-in {
     opacity: 0;
     animation: fadeIn 0.6s ease-out forwards;
+    will-change: opacity;
   }
 
   .animate-slide-up {
     opacity: 0;
     animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    will-change: transform, opacity;
   }
 
   .animate-float {
     animation: float 3s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  /* Hardware acceleration for smoother animations */
+  .gpu {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
   }
 }
 
@@ -155,4 +188,9 @@ All colors MUST be HSL.
   100% {
     transform: translateY(0px);
   }
+}
+
+/* Optimization for reducing layout shifts */
+img {
+  content-visibility: auto;
 }

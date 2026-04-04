@@ -14,11 +14,11 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
       {/* Decorative Background Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[100px] animate-fade-in" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[100px] animate-fade-in" style={{ animationDelay: '0.3s' }} />
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[100px] animate-fade-in gpu" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[100px] animate-fade-in gpu" style={{ animationDelay: '0.3s' }} />
 
-      <div className="text-center mb-10 relative z-10 animate-fade-in">
-        <div className="inline-block mb-4 p-2 rounded-2xl bg-white shadow-xl shadow-primary/10 animate-float border border-primary/5">
+      <div className="text-center mb-10 relative z-10 animate-fade-in gpu">
+        <div className="inline-block mb-4 p-2 rounded-2xl bg-white shadow-xl shadow-primary/10 animate-float gpu border border-primary/5">
           <img src="/VitalWeb.png" alt="PasseVite Logo" className="h-12 w-12 object-contain" />
         </div>
         <h1 className="text-5xl md:text-6xl font-black text-primary tracking-tighter italic">
@@ -35,7 +35,7 @@ const Index = () => {
           <Link
             key={href}
             to={href}
-            className="animate-slide-up"
+            className="animate-slide-up gpu"
             style={{ animationDelay: `${0.1 * (index + 1)}s` }}
           >
             <Card className="border border-white/40 dark:border-white/5 shadow-xl shadow-primary/5 hover:shadow-primary/10 transition-all duration-300 cursor-pointer group h-full bg-white/50 dark:bg-black/20 backdrop-blur-sm active:scale-95">

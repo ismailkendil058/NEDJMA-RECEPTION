@@ -360,7 +360,7 @@ export function useQueue() {
   };
 
   return {
-    entries: entries.filter(e => e.status === 'waiting'),
+    entries,
     inCabinetEntries,
     activeSession,
     doctors,

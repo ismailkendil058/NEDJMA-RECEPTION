@@ -147,22 +147,22 @@ const Client = () => {
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-background flex flex-col">
-      <header className="p-3 sm:p-4 text-center border-b">
-        <h1 className="text-xl sm:text-2xl font-bold text-primary italic">PasseVite</h1>
-        <p className="text-[10px] tracking-[0.2em] text-muted-foreground -mt-1 uppercase">le soin qui passe</p>
+      <header className="p-3 sm:p-4 text-center border-b gpu">
+        <h1 className="text-xl sm:text-2xl font-bold text-primary italic animate-fade-in gpu">PasseVite</h1>
+        <p className="text-[10px] tracking-[0.2em] text-muted-foreground -mt-1 uppercase animate-fade-in gpu">le soin qui passe</p>
       </header>
 
       {!queueData?.found && (
-        <div className="flex-1 p-3 sm:p-4 flex items-center justify-center">
-          <Card className="w-full max-w-md border-0 shadow-lg">
+        <div className="flex-1 p-3 sm:p-4 flex items-center justify-center animate-slide-up gpu">
+          <Card className="w-full max-w-md border-0 shadow-lg gpu">
             <CardHeader className="pb-2 sm:pb-4">
-              <CardTitle className="text-base sm:text-lg text-center">Trouver votre position</CardTitle>
+              <CardTitle className="text-base sm:text-lg text-center font-bold tracking-tight">Trouver votre position</CardTitle>
             </CardHeader>
             <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
               <Tabs defaultValue="phone" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="phone" className="text-xs sm:text-sm">Par téléphone</TabsTrigger>
-                  <TabsTrigger value="id" className="text-xs sm:text-sm">Par identifiant</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 rounded-xl">
+                  <TabsTrigger value="phone" className="text-xs sm:text-sm rounded-lg data-[state=active]:shadow-sm">Par téléphone</TabsTrigger>
+                  <TabsTrigger value="id" className="text-xs sm:text-sm rounded-lg data-[state=active]:shadow-sm">Par identifiant</TabsTrigger>
                 </TabsList>
                 <TabsContent value="phone" className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
                   <Input
@@ -233,33 +233,39 @@ const Client = () => {
       )}
 
       {queueData?.found && (
-        <div className="flex-1 p-3 sm:p-4 flex items-center justify-center">
-          <Card className="w-full max-w-md border-0 shadow-lg">
-            <CardContent className="p-6 sm:p-8 text-center space-y-4 sm:space-y-6">
-              <div>
+        <div className="flex-1 p-3 sm:p-4 flex items-center justify-center animate-slide-up gpu">
+          <Card className="w-full max-w-md border-0 shadow-lg gpu overflow-hidden">
+            <CardContent className="p-6 sm:p-8 text-center space-y-4 sm:space-y-6 relative">
+              {/* Decorative accent */}
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-primary/20" />
+              <div className="absolute top-0 left-0 h-1.5 bg-primary animate-[shimmer_2s_infinite] w-full" style={{ background: 'linear-gradient(90deg, transparent, hsl(var(--primary)), transparent)' }} />
+
+              <div className="space-y-2">
                 {queueData.patient_name && (
-                  <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-1">{queueData.patient_name}</h2>
+                  <h2 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight italic">{queueData.patient_name}</h2>
                 )}
-                <p className="text-xs sm:text-sm text-muted-foreground mb-1">Votre identifiant</p>
-                <p className="text-4xl sm:text-5xl font-bold text-primary">{queueData.client_id}</p>
-              </div>
-              <Badge className="text-xs sm:text-sm px-3 sm:px-4 py-1">{stateLabels[queueData.state] || queueData.state}</Badge>
-              <div className="bg-secondary rounded-2xl p-4 sm:p-6">
-                <div className="flex items-center justify-center gap-2 mb-1 sm:mb-2">
-                  <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  <span className="text-2xl sm:text-3xl font-bold text-foreground">{queueData.peopleBefore}</span>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.3em]">Votre identifiant</p>
+                  <p className="text-5xl sm:text-7xl font-black text-primary tracking-tighter italic animate-pulse-subtle">{queueData.client_id}</p>
                 </div>
-                <p className="text-xs sm:text-sm text-muted-foreground">
+              </div>
+              <Badge variant="outline" className="text-xs sm:text-sm px-4 py-1.5 font-bold border-primary/20 text-primary bg-primary/5 uppercase tracking-widest">{stateLabels[queueData.state] || queueData.state}</Badge>
+              <div className="bg-primary/[0.03] rounded-[2rem] p-6 sm:p-8 border border-primary/5 shadow-inner">
+                <div className="flex items-center justify-center gap-3 mb-2 animate-float gpu">
+                  <Users className="h-6 w-6 text-primary" />
+                  <span className="text-4xl sm:text-5xl font-black text-foreground tracking-tighter tabular-nums">{queueData.peopleBefore}</span>
+                </div>
+                <p className="text-xs sm:text-sm font-bold text-muted-foreground uppercase tracking-widest opacity-70">
                   {queueData.peopleBefore === 0
                     ? 'C\'est votre tour !'
                     : `personne${queueData.peopleBefore > 1 ? 's' : ''} avant vous`}
                 </p>
               </div>
-              <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="text-xs sm:text-sm">Dr. {queueData.doctor_name}</span>
+              <div className="flex items-center justify-center gap-2 text-muted-foreground py-2 border-y border-dashed border-muted-foreground/10">
+                <Clock className="h-4 w-4" />
+                <span className="text-xs sm:text-sm font-medium tracking-wide">Dr. {queueData.doctor_name}</span>
               </div>
-              <Button variant="outline" onClick={() => setQueueData(null)} className="mt-2 sm:mt-4">
+              <Button variant="ghost" onClick={() => setQueueData(null)} className="mt-2 sm:mt-4 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary">
                 Nouvelle recherche
               </Button>
             </CardContent>

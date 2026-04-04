@@ -38,6 +38,8 @@ const Manager = () => {
   const [dateFrom, setDateFrom] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [dateTo, setDateTo] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [loading, setLoading] = useState(true);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+
 
   const fetchData = async () => {
     setLoading(true);
@@ -68,7 +70,18 @@ const Manager = () => {
         receptionist_email: emailMap.get(c.receptionist_id) || '—',
       })));
     }
+
+    const { data: expData } = await supabase
+      .from('expenses')
+      .select('amount')
+      .gte('date', dateFrom)
+      .lte('date', dateTo);
+
+    if (expData) {
+      setTotalExpenses(expData.reduce((s, e) => s + (e.amount || 0), 0));
+    }
     setLoading(false);
+
   };
 
   useEffect(() => {
@@ -152,6 +165,12 @@ const Manager = () => {
             <Link to="/ordonnance">
               <FileText className="h-4 w-4 mr-1" />
               <span className="hidden sm:inline">Ordonnance</span>
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm" className="h-9">
+            <Link to="/manager/depenses">
+              <DollarSign className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Dépenses</span>
             </Link>
           </Button>
           <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8"><LogOut className="h-4 w-4" /></Button>
@@ -247,7 +266,28 @@ const Manager = () => {
               <p className="text-xl sm:text-2xl font-bold text-foreground">{analytics.byDoctor.size}</p>
             </CardContent>
           </Card>
+          <Card className="border-0 shadow-sm bg-destructive/5">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+                <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-destructive" />
+                <span className="text-xs text-muted-foreground">Dépenses</span>
+              </div>
+              <p className="text-lg sm:text-2xl font-bold text-destructive">{totalExpenses.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">DZD</p>
+            </CardContent>
+          </Card>
+          <Card className="border-0 shadow-sm bg-primary/5">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+                <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                <span className="text-xs text-muted-foreground">Profit</span>
+              </div>
+              <p className="text-lg sm:text-2xl font-bold text-primary">{(analytics.totalPaid - totalExpenses).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">DZD (Net)</p>
+            </CardContent>
+          </Card>
         </div>
+
 
         {/* Per Doctor Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">

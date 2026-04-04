@@ -214,13 +214,13 @@ const TV = () => {
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[100px] animate-fade-in" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[100px] animate-fade-in" />
 
-        <div className="flex flex-col items-center gap-8 relative z-10">
-          <div className="p-4 rounded-3xl bg-white shadow-2xl shadow-primary/20 animate-float border border-primary/5">
+        <div className="flex flex-col items-center gap-8 relative z-10 gpu">
+          <div className="p-4 rounded-3xl bg-white shadow-2xl shadow-primary/20 animate-float gpu border border-primary/5">
             <img src="/VitalWeb.png" alt="PasseVite Logo" className="h-16 w-16 object-contain" />
           </div>
           <div className="text-center space-y-3">
-            <h1 className="text-5xl font-black italic text-primary tracking-tighter animate-fade-in">PasseVite</h1>
-            <p className="text-xs tracking-[0.5em] text-muted-foreground uppercase font-bold animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <h1 className="text-5xl font-black italic text-primary tracking-tighter animate-fade-in gpu">PasseVite</h1>
+            <p className="text-xs tracking-[0.5em] text-muted-foreground uppercase font-bold animate-fade-in gpu" style={{ animationDelay: '0.2s' }}>
               Chargement de la file
             </p>
           </div>
@@ -236,8 +236,8 @@ const TV = () => {
     <div className="h-[100dvh] overflow-hidden bg-background flex flex-col p-6 relative" style={{ fontFamily: "'Inter', sans-serif" }}>
 
       {/* Decorative Background Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/5 rounded-full blur-[120px] animate-fade-in pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px] animate-fade-in pointer-events-none" style={{ animationDelay: '0.3s' }} />
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/5 rounded-full blur-[120px] animate-fade-in gpu pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px] animate-fade-in gpu pointer-events-none" style={{ animationDelay: '0.3s' }} />
 
       {/* ── Full-screen Announcement Overlay ── */}
       {announcement && (
@@ -323,8 +323,8 @@ const TV = () => {
 
       {/* Header */}
       <div className="flex items-center justify-between mb-8 md:mb-12 relative z-10">
-        <div className="flex items-center gap-6 animate-slide-up">
-          <div className="p-2.5 rounded-2xl bg-white shadow-xl shadow-primary/10 animate-float border border-primary/5 hidden md:block">
+        <div className="flex items-center gap-6 animate-slide-up gpu">
+          <div className="p-2.5 rounded-2xl bg-white shadow-xl shadow-primary/10 animate-float gpu border border-primary/5 hidden md:block">
             <img src="/VitalWeb.png" alt="PasseVite Logo" className="h-10 w-10 object-contain" />
           </div>
           <div>
@@ -360,7 +360,7 @@ const TV = () => {
                 className={`
                   relative overflow-hidden border border-white/40 dark:border-white/5 
                   shadow-2xl shadow-primary/5 bg-white/50 dark:bg-black/20 
-                  backdrop-blur-md transition-all duration-700 animate-slide-up
+                  backdrop-blur-md transition-all duration-700 animate-slide-up gpu
                   flex flex-col
                   ${isAnimating ? 'ring-4 ring-primary scale-[1.02] z-20 shadow-primary/20' : 'z-10'}
                 `}
@@ -372,7 +372,7 @@ const TV = () => {
 
                 {/* Doctor Header */}
                 <div className="p-6 md:p-8 flex items-center gap-5 border-b border-primary/5 bg-primary/[0.02]">
-                  <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-black text-xl shadow-lg shadow-primary/20 animate-float">
+                  <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-black text-xl shadow-lg shadow-primary/20 animate-float gpu">
                     {doctor.initial || doctor.name.charAt(0)}
                   </div>
                   <div className="min-w-0">

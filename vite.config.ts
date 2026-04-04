@@ -18,4 +18,17 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js'],
+          ui: ['@radix-ui/react-accordion', '@radix-ui/react-dialog', 'lucide-react'],
+          charts: ['recharts'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
 }));

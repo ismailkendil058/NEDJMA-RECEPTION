@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueue, QueueEntry } from '@/hooks/useQueue';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Phone, Plus, LogOut, ChevronRight, ChevronLeft, Users, Clock, CheckCircle, XCircle, MessageCircle, Pencil, Trash2, UserCheck, Calendar as CalendarIcon } from 'lucide-react';
+import { Phone, Plus, LogOut, ChevronRight, ChevronLeft, Users, Clock, CheckCircle, XCircle, MessageCircle, Pencil, Trash2, UserCheck, Calendar as CalendarIcon, DollarSign, ShoppingCart } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -19,6 +20,97 @@ import { fr } from 'date-fns/locale';
 
 
 const TREATMENTS = ['Consultation', 'Blanchiment', 'Extraction', 'Détartrage', 'Soin dentaire', 'Prothèse', 'Orthodontie'];
+
+const QueueItem = React.memo(({ entry, index, onEdit, onDelete, onNext }: { entry: QueueEntry; index: number; onEdit: (e: QueueEntry) => void; onDelete: (id: string) => void; onNext: (e: QueueEntry) => void }) => {
+  const stateColors = {
+    U: 'bg-destructive text-destructive-foreground',
+    N: 'bg-primary text-primary-foreground',
+    R: 'bg-foreground text-background',
+  };
+  const stateLabels = { U: 'Urgence', N: 'Nouveau', R: 'Rendez-vous' };
+
+  return (
+    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow gpu">
+      <CardContent className="p-3 sm:p-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
+            <span className="text-xs sm:text-sm font-bold text-primary">{index + 1}</span>
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-semibold text-sm sm:text-base text-foreground">{entry.client_id}</span>
+              {entry.patient_name && (
+                <span className="text-sm font-medium text-muted-foreground truncate max-w-[120px] sm:max-w-[200px]">
+                  · {entry.patient_name}
+                </span>
+              )}
+              <Badge variant="outline" className={`${stateColors[entry.state]} text-xs px-1.5 py-0`}>
+                {stateLabels[entry.state]}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground truncate">
+              Dr. {entry.doctor?.name || '—'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1">
+            <a href={`tel:${entry.phone}`} className="text-primary flex items-center justify-center p-1.5 hover:bg-secondary/50 rounded-full transition-colors" title="Appeler">
+              <Phone className="h-5 w-5" />
+            </a>
+            <a
+              href={`sms:${entry.phone}?body=${encodeURIComponent(". Cabinet PasseVite : votre tour arrive bientôt.\nVous pouvez suivre le nombre de patients avant vous ici :\nhttps://passevite.vercel.app/client\nدوركم سيأتي قريبًا.")}`}
+              className="text-primary flex items-center justify-center p-1.5 hover:bg-secondary/50 rounded-full transition-colors"
+              title="Envoyer un SMS"
+            >
+              <MessageCircle className="h-5 w-5" />
+            </a>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-primary"
+              onClick={() => onEdit(entry)}
+              title="Modifier"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  title="Supprimer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Supprimer le patient ?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Cette action supprimera {entry.client_id} de la file d'attente. Cette action est irréversible.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onDelete(entry.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Supprimer</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => onNext(entry)}
+            className="gap-1 shrink-0 h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm"
+          >
+            <span className="hidden sm:inline">Suivant</span> <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+});
 
 const Accueil = () => {
   const { user, signOut } = useAuth();
@@ -35,6 +127,12 @@ const Accueil = () => {
   const [editState, setEditState] = useState<'U' | 'N' | 'R'>('N');
   const [editDoctorId, setEditDoctorId] = useState('');
   const [doctorFilter, setDoctorFilter] = useState<string>('all');
+
+  // Quick Expense Modal
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseDesc, setExpenseDesc] = useState('');
+  const [savingExpense, setSavingExpense] = useState(false);
   const doctorsScrollRef = useRef<HTMLDivElement>(null);
 
   const scrollDoctors = (direction: 'left' | 'right') => {
@@ -318,6 +416,31 @@ const Accueil = () => {
     else toast.success('Patient supprimé');
   };
 
+  const handleAddExpense = async () => {
+    if (!expenseAmount || !expenseDesc) {
+      toast.error('Veuillez remplir le montant et la description');
+      return;
+    }
+    setSavingExpense(true);
+    try {
+      const { error } = await supabase.from('expenses').insert({
+        amount: parseFloat(expenseAmount),
+        description: expenseDesc,
+        date: new Date().toISOString(),
+        created_by: user?.id
+      });
+      if (error) throw error;
+      toast.success('Dépense ajoutée avec succès');
+      setExpenseAmount('');
+      setExpenseDesc('');
+      setShowExpenseModal(false);
+    } catch (err) {
+      toast.error('Erreur lors de l\'ajout de la dépense');
+    } finally {
+      setSavingExpense(false);
+    }
+  };
+
   const fetchCompleted = async () => {
     if (!activeSession) return;
     const { data } = await (await import('@/integrations/supabase/client')).supabase
@@ -390,35 +513,46 @@ const Accueil = () => {
       {/* Header */}
       <header className="flex items-center justify-between p-3 sm:p-4 border-b sticky top-0 bg-background z-10">
         <div className="min-w-0">
-          <h1 className="text-lg sm:text-xl font-bold text-primary italic">PasseVite</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-primary italic leading-none">PasseVite</h1>
           <p className="text-[10px] text-muted-foreground truncate uppercase">le soin qui passe</p>
+        </div>
+        <div className="flex gap-1.5 sm:gap-2 mx-auto">
+          <Button asChild variant="secondary" size="sm" className="h-8 px-2 sm:px-3 text-[11px] font-black uppercase tracking-widest bg-primary/10 text-primary hover:bg-primary/20 border-0 rounded-full sm:rounded-md shadow-none">
+            <Link to="/accueil/factures/ajouter">
+              <ShoppingCart className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Facture</span>
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3 text-[11px] font-black uppercase tracking-widest bg-destructive/5 text-destructive border-destructive/20 hover:bg-destructive/10 rounded-full sm:rounded-md shadow-none" onClick={() => setShowExpenseModal(true)}>
+            <DollarSign className="h-3.5 w-3.5 sm:mr-1.5" />
+            <span className="hidden sm:inline">Dépense</span>
+          </Button>
         </div>
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <Link to="/rendezvous">
-            <Button variant="outline" size="sm" className="hidden sm:flex">
-              <CalendarIcon className="h-4 w-4 mr-1" /> Rendez-vous
+            <Button variant="outline" size="sm" className="hidden sm:flex h-8 px-3 text-[11px] font-black uppercase tracking-widest">
+              <CalendarIcon className="h-3.5 w-3.5 mr-1.5" /> Rendez-vous
             </Button>
-          </Link>
-          <Link to="/rendezvous">
-            <Button variant="outline" size="icon" className="sm:hidden h-8 w-8">
+            <Button variant="outline" size="icon" className="sm:hidden h-8 w-8 rounded-full">
               <CalendarIcon className="h-4 w-4" />
             </Button>
-
           </Link>
-          <Button variant="outline" size="sm" onClick={fetchCompleted} className="hidden sm:flex">
-            <CheckCircle className="h-4 w-4 mr-1" /> Terminés
+
+          <Button variant="outline" size="sm" onClick={fetchCompleted} className="hidden sm:flex h-8 px-3 text-[11px] font-black uppercase tracking-widest">
+            <CheckCircle className="h-3.5 w-3.5 mr-1.5" /> Terminés
           </Button>
-          <Button variant="outline" size="icon" onClick={fetchCompleted} className="sm:hidden h-8 w-8">
+          <Button variant="outline" size="icon" onClick={fetchCompleted} className="sm:hidden h-8 w-8 rounded-full">
             <CheckCircle className="h-4 w-4" />
           </Button>
+
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm" className="hidden sm:flex" disabled={entries.length > 0 || inCabinetEntries.length > 0}>
-                <XCircle className="h-4 w-4 mr-1" /> Fermer
+              <Button variant="destructive" size="sm" className="hidden sm:flex h-8 px-3 text-[11px] font-black uppercase tracking-widest" disabled={entries.length > 0 || inCabinetEntries.length > 0}>
+                <XCircle className="h-3.5 w-3.5 mr-1.5" /> Fermer
               </Button>
             </AlertDialogTrigger>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="icon" className="sm:hidden h-8 w-8" disabled={entries.length > 0 || inCabinetEntries.length > 0}>
+              <Button variant="destructive" size="icon" className="sm:hidden h-8 w-8 rounded-full" disabled={entries.length > 0 || inCabinetEntries.length > 0}>
                 <XCircle className="h-4 w-4" />
               </Button>
             </AlertDialogTrigger>
@@ -446,6 +580,7 @@ const Accueil = () => {
           <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8"><LogOut className="h-4 w-4" /></Button>
         </div>
       </header>
+
 
       {/* Stats by Doctor - carousel with navigation */}
       <div className="relative">
@@ -527,85 +662,14 @@ const Accueil = () => {
           </div>
         ) : (
           filtered.map((entry, index) => (
-            <Card key={entry.id} className="border-0 shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-3 sm:p-4 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                    <span className="text-xs sm:text-sm font-bold text-primary">{index + 1}</span>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-semibold text-sm sm:text-base text-foreground">{entry.client_id}</span>
-                      {entry.patient_name && (
-                        <span className="text-sm font-medium text-muted-foreground truncate max-w-[120px] sm:max-w-[200px]">
-                          · {entry.patient_name}
-                        </span>
-                      )}
-                      <Badge variant="outline" className={`${stateColors[entry.state]} text-xs px-1.5 py-0`}>
-                        {stateLabels[entry.state]}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      Dr. {entry.doctor?.name || '—'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="flex items-center gap-1">
-                    <a href={`tel:${entry.phone}`} className="text-primary flex items-center justify-center p-1.5 hover:bg-secondary/50 rounded-full transition-colors" title="Appeler">
-                      <Phone className="h-5 w-5" />
-                    </a>
-                    <a
-                      href={`sms:${entry.phone}?body=${encodeURIComponent(". Cabinet PasseVite : votre tour arrive bientôt.\nVous pouvez suivre le nombre de patients avant vous ici :\nhttps://passevite.vercel.app/client\nدوركم سيأتي قريبًا.")}`}
-                      className="text-primary flex items-center justify-center p-1.5 hover:bg-secondary/50 rounded-full transition-colors"
-                      title="Envoyer un SMS"
-                    >
-                      <MessageCircle className="h-5 w-5" />
-                    </a>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-primary"
-                      onClick={() => handleEdit(entry)}
-                      title="Modifier"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Supprimer le patient ?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Cette action supprimera {entry.client_id} de la file d'attente. Cette action est irréversible.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Annuler</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(entry.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Supprimer</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleNext(entry)}
-                    className="gap-1 shrink-0 h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm"
-                  >
-                    <span className="hidden sm:inline">Suivant</span> <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <QueueItem
+              key={entry.id}
+              entry={entry}
+              index={index}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onNext={handleNext}
+            />
           ))
         )}
       </div>
@@ -620,6 +684,7 @@ const Accueil = () => {
           <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
         </Button>
       </div>
+
 
       {/* Add Client Modal */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
@@ -872,9 +937,45 @@ const Accueil = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div >
+      {/* Add Expense Modal */}
+      <Dialog open={showExpenseModal} onOpenChange={setShowExpenseModal}>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-destructive" />
+              Nouvelle Dépense Rapide
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Montant (DZD)</label>
+              <Input
+                placeholder="ex: 1500"
+                type="number"
+                value={expenseAmount}
+                onChange={(e) => setExpenseAmount(e.target.value)}
+                className="h-12 text-lg font-bold"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Description / Motif</label>
+              <Input
+                placeholder="Café, Fournitures, Réparations..."
+                value={expenseDesc}
+                onChange={(e) => setExpenseDesc(e.target.value)}
+                className="h-12"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleAddExpense} disabled={savingExpense} className="w-full h-12 text-sm font-black uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white border-0">
+              {savingExpense ? "Enregistrement..." : "Confirmer la dépense"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 
 export default Accueil;
-

@@ -7,8 +7,8 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import DynamicManifest from "./components/DynamicManifest";
 
 // Lazy load pages for better performance
-import Index from "./pages/Index";
-import LoginAccueil from "./pages/LoginAccueil";
+const Index = lazy(() => import("./pages/Index"));
+const LoginAccueil = lazy(() => import("./pages/LoginAccueil"));
 const LoginManager = lazy(() => import("./pages/LoginManager"));
 const LoginMedecin = lazy(() => import("./pages/LoginMedecin"));
 const Accueil = lazy(() => import("./pages/Accueil"));
@@ -23,6 +23,10 @@ const Merci = lazy(() => import("./pages/Merci"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Ordonnance = lazy(() => import("./pages/Ordonnance"));
 const MedecinDashboard = lazy(() => import("./pages/MedecinDashboard"));
+const Depenses = lazy(() => import("./pages/Depenses"));
+const Factures = lazy(() => import("./pages/Factures"));
+const AjouterFacture = lazy(() => import("./pages/AjouterFacture"));
+
 
 const LoadingScreen = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
@@ -30,7 +34,16 @@ const LoadingScreen = () => (
   </div>
 );
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 30, // 30 minutes
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 function ProtectedRoute({ children, requiredRoles }: { children: React.ReactNode; requiredRoles?: string[] }) {
   const { user, loading, userRole } = useAuth();
@@ -79,6 +92,21 @@ const App = () => (
             <Route path="/manager" element={
               <ProtectedRoute requiredRoles={['manager']}><Manager /></ProtectedRoute>
             } />
+            <Route path="/manager/depenses" element={
+              <ProtectedRoute requiredRoles={['manager']}><Depenses /></ProtectedRoute>
+            } />
+            <Route path="/manager/factures" element={
+              <ProtectedRoute requiredRoles={['manager', 'receptionist']}><Factures /></ProtectedRoute>
+            } />
+            <Route path="/manager/factures/ajouter" element={
+              <ProtectedRoute requiredRoles={['manager', 'receptionist']}><AjouterFacture /></ProtectedRoute>
+            } />
+            <Route path="/accueil/factures/ajouter" element={
+              <ProtectedRoute requiredRoles={['manager', 'receptionist']}><AjouterFacture /></ProtectedRoute>
+            } />
+
+
+
             <Route path="/rendezvous" element={
               <ProtectedRoute requiredRoles={['manager', 'receptionist']}><Rendezvous /></ProtectedRoute>
             } />

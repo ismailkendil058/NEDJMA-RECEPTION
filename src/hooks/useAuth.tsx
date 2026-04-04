@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 
@@ -35,10 +35,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
-        
+
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
           // Use setTimeout to avoid blocking and ensure state updates
           setTimeout(async () => {
@@ -59,10 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Then get the initial session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;
-      
+
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         const role = await fetchUserRole(session.user.id);
         if (mounted) {
@@ -89,8 +89,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const contextValue = useMemo(() => ({
+    user,
+    session,
+    loading,
+    signIn,
+    signOut,
+    userRole
+  }), [user, session, loading, userRole]);
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signOut, userRole }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
